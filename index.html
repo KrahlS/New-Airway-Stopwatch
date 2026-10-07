@@ -1,0 +1,1562 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#121820">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Airway Timer">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Airway Study Timer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: one thumb-width column under a sticky monitor-style clock; phase tabs (Before / During / After / Summary);
+   full-width tap targets; vitals colored the way the bedside monitor colors them. Dark-first for dim resus rooms. */
+:root{
+  --bg:#0A0E13; --surface:#121820; --raised:#1A222D; --line:#2A3544; --fg:#E8EEF5; --muted:#8B99AB;
+  --accent:#A4B6FF; --accent-ink:#0A0E13; --accent-soft:rgba(164,182,255,.14);
+  --hr:#4ADE80; --spo2:#3FD3EE; --bp:#D68CF8; --et:#F4D03F;
+  --alert:#FF4B4B; --alert-soft:rgba(255,75,75,.18); --on-alert:#FFFFFF;
+  --warn:#F5A623; --warn-soft:rgba(245,166,35,.15); --on-warn:#1A1204;
+  --ok:#4ADE80; --scrim:rgba(3,6,10,.62);
+  --font-ui:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --font-cond:"Barlow Semi Condensed","Barlow",system-ui,-apple-system,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  --r:14px; --r-sm:10px;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#EDF0F4; --surface:#FFFFFF; --raised:#F3F5F8; --line:#D3DAE3; --fg:#0D141C; --muted:#566377;
+    --accent:#2F45C4; --accent-ink:#FFFFFF; --accent-soft:rgba(47,69,196,.10);
+    --hr:#13803B; --spo2:#0B7490; --bp:#8E2FD9; --et:#8F6400;
+    --alert:#D92020; --alert-soft:rgba(217,32,32,.10); --on-alert:#FFFFFF;
+    --warn:#B45309; --warn-soft:rgba(180,83,9,.10); --on-warn:#FFFFFF;
+    --ok:#13803B; --scrim:rgba(13,20,28,.45);
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --bg:#EDF0F4; --surface:#FFFFFF; --raised:#F3F5F8; --line:#D3DAE3; --fg:#0D141C; --muted:#566377;
+  --accent:#2F45C4; --accent-ink:#FFFFFF; --accent-soft:rgba(47,69,196,.10);
+  --hr:#13803B; --spo2:#0B7490; --bp:#8E2FD9; --et:#8F6400;
+  --alert:#D92020; --alert-soft:rgba(217,32,32,.10); --on-alert:#FFFFFF;
+  --warn:#B45309; --warn-soft:rgba(180,83,9,.10); --on-warn:#FFFFFF;
+  --ok:#13803B; --scrim:rgba(13,20,28,.45);
+  color-scheme:light;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 var(--font-ui);-webkit-tap-highlight-color:transparent}
+body.noscroll{overflow:hidden}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;background:none;border:0;padding:0}
+input,textarea{font:inherit;color:inherit}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+h1,h2,h3{text-wrap:balance;margin:0}
+.wrap{max-width:560px;margin:0 auto;padding-inline:16px;padding-block:14px 140px}
+body.has-abar .wrap{padding-bottom:230px}
+.hint{margin:0;font-size:14px;color:var(--muted);line-height:1.4}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+/* ---------- buttons ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:10px 18px;border-radius:12px;border:1.5px solid var(--line);background:var(--raised);font-weight:600;font-size:16px;text-align:center}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--alert);border-color:var(--alert);background:transparent}
+.btn.big{width:100%;min-height:56px;font-size:18px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.arm{background:var(--alert)!important;border-color:var(--alert)!important;color:var(--on-alert)!important}
+.link{color:var(--accent);font-weight:600;text-decoration:underline;text-underline-offset:3px;padding:6px 0}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:44px;padding:8px 16px;border-radius:999px;border:1.5px solid var(--line);font-weight:600;font-size:16px;line-height:1.15;display:inline-flex;flex-direction:column;align-items:center;justify-content:center}
+.chip small{font-family:var(--font-mono);font-weight:500;font-size:11.5px;opacity:.8}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+
+/* ---------- home ---------- */
+.brand{display:flex;align-items:center;gap:14px;padding-block:10px 4px}
+.brand .mark{width:46px;height:46px;flex:none;color:var(--accent)}
+.brand h1{font:700 26px/1.05 var(--font-cond);letter-spacing:.01em}
+.brand p{margin:2px 0 0;font:600 13px var(--font-cond);letter-spacing:.14em;color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:12px}
+.stl{display:flex;flex-direction:column;gap:8px}
+.st{display:flex;gap:12px;align-items:flex-start;text-align:left;padding:12px;border-radius:var(--r-sm);border:1.5px solid var(--line)}
+.st b{display:block;font:700 18px var(--font-cond);letter-spacing:.04em}
+.st small{display:block;color:var(--muted);font-size:14px;line-height:1.35}
+.st .box{flex:none;width:24px;height:24px;border-radius:7px;border:2px solid var(--line);margin-top:2px;display:grid;place-items:center}
+.st.on{border-color:var(--accent);background:var(--accent-soft)}
+.st.on .box{background:var(--accent);border-color:var(--accent)}
+.st.on .box::after{content:"";width:6px;height:11px;border:solid var(--accent-ink);border-width:0 3px 3px 0;transform:translateY(-1px) rotate(45deg)}
+.resume{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px;border-radius:var(--r);background:var(--accent);color:var(--accent-ink)}
+.resume b{display:block;font:700 18px var(--font-cond);letter-spacing:.03em;text-transform:uppercase}
+.resume span{font-size:14px}
+.resume .mono{margin-left:auto;font-size:22px;font-weight:700}
+.crow{display:flex;align-items:stretch;gap:8px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface)}
+.crow-main{flex:1;min-width:0;text-align:left;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.crow-main b{font-weight:600}
+.crow-s{font-size:14px;color:var(--muted)}
+.crow-del{padding:0 14px;color:var(--muted);font-size:14px;font-weight:600;border-left:1px solid var(--line);border-radius:0 var(--r-sm) var(--r-sm) 0}
+.list{display:flex;flex-direction:column;gap:8px}
+.empty{margin:0;padding:16px;border:1.5px dashed var(--line);border-radius:var(--r-sm);color:var(--muted);font-size:15px}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.setrow span{font-weight:600}
+.foot{margin:24px 0 0;font-size:13px;color:var(--muted);line-height:1.5}
+.studytag{display:inline-block;font:700 11px/1 var(--font-cond);letter-spacing:.1em;padding:4px 6px;border-radius:5px;border:1px solid var(--line);color:var(--muted);text-transform:uppercase;vertical-align:middle}
+
+/* ---------- case header ---------- */
+.hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--surface);border-bottom:1px solid var(--line)}
+.hdr-in{max-width:560px;margin:0 auto;padding:8px 16px 0}
+.hdr-row{display:grid;grid-template-columns:72px 1fr 72px;align-items:center;gap:6px}
+.back{display:inline-flex;align-items:center;gap:2px;min-height:44px;font-weight:600;font-size:15px;color:var(--accent)}
+.back svg{width:18px;height:18px}
+.clockblk{text-align:center;min-width:0}
+.sw{font-family:var(--font-mono);font-weight:700;font-size:44px;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.sw-sub{margin-top:3px;font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sw-sub b{color:var(--fg);font-family:var(--font-mono);font-weight:500}
+.tags{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.status{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.status:empty{display:none}
+.st-line{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.st-line .dot{width:9px;height:9px;border-radius:50%;background:var(--alert);flex:none}
+.st-line.amber .dot{background:var(--warn)}
+.st-line.done .dot{background:var(--ok)}
+.st-line [data-tick]{font-family:var(--font-mono)}
+.wake{font-size:12px;color:var(--warn);text-align:center;margin-top:4px}
+.wake:empty{display:none}
+.tabs{display:flex;margin-top:6px}
+.tab{flex:1;padding:11px 2px 9px;border-bottom:3px solid transparent;font:600 14px var(--font-cond);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--fg);border-color:var(--accent)}
+
+/* ---------- sections ---------- */
+.sec{margin-top:22px;display:flex;flex-direction:column;gap:10px;scroll-margin-top:220px}
+.sec:first-child{margin-top:6px}
+.sec-h{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.sec-h h2{font:700 15px var(--font-cond);letter-spacing:.09em;text-transform:uppercase}
+.sec-h .tg{display:flex;gap:4px}
+.sub-h{font:700 13px var(--font-cond);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-top:4px}
+.note{padding:10px 12px;border-radius:var(--r-sm);font-size:14.5px;line-height:1.4;border:1px solid var(--line);background:var(--raised)}
+.note.warn{border-color:var(--warn);background:var(--warn-soft)}
+.note.alert{border-color:var(--alert);background:var(--alert-soft)}
+.q{display:flex;flex-direction:column;gap:9px;padding:12px;border:1px solid var(--line);border-radius:var(--r-sm);background:var(--surface)}
+.q .qt{margin:0;font-weight:600;line-height:1.35}
+.step{display:inline-block;font:700 12px var(--font-cond);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-right:6px}
+.txt{display:flex;flex-direction:column;gap:5px;font-size:14px;color:var(--muted);font-weight:600}
+.txt input{min-height:46px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--raised);font-size:16px;font-weight:500;color:var(--fg);width:100%}
+.next{margin-top:22px}
+
+/* ---------- stopwatch events ---------- */
+.evts{display:flex;flex-direction:column;gap:10px}
+.evt{display:flex;align-items:center;gap:12px;width:100%;min-height:70px;padding:12px 14px 12px 16px;border-radius:var(--r);border:2px solid var(--line);background:var(--surface);text-align:left}
+.evt .lbl{flex:1;min-width:0;font:700 19px/1.15 var(--font-cond);text-transform:uppercase;letter-spacing:.03em}
+.evt .lbl small{display:block;margin-top:3px;font:500 13.5px/1.3 var(--font-ui);text-transform:none;letter-spacing:0;color:var(--muted)}
+.evt .go{flex:none;font:700 13px var(--font-cond);letter-spacing:.12em;padding:7px 10px;border-radius:8px;border:1.5px solid currentColor;color:var(--accent)}
+.evt.ready{border-color:var(--accent)}
+.evt.ready:active{background:var(--accent-soft)}
+.evt.need{border-color:var(--warn)}
+.evt.need .go{color:var(--warn)}
+.evt.done{background:var(--raised);border-color:transparent}
+.evt:disabled{opacity:.38;cursor:not-allowed}
+.evt.start{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);min-height:92px}
+.evt.start .lbl{font-size:24px}
+.evt.start .lbl small{color:var(--accent-ink);opacity:.82}
+.evt.start .go{color:var(--accent-ink)}
+.tp{flex:none;text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;line-height:1.1}
+.tp b{display:block;font-size:26px;font-weight:700}
+.tp small{font-size:13px;color:var(--muted)}
+.ed{flex:none;font-size:12px;font-weight:600;color:var(--muted);border-left:1px solid var(--line);padding-left:10px;align-self:stretch;display:flex;align-items:center}
+.nomeds{display:flex;flex-direction:column;gap:6px}
+
+/* ---------- counters ---------- */
+.ctrs{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:2px 14px}
+.ctr{display:grid;grid-template-columns:1fr auto auto auto;align-items:center;gap:10px;padding:10px 0}
+.ctr+.ctr{border-top:1px solid var(--line)}
+.ctr .cl{font-weight:600;line-height:1.25;min-width:0}
+.ctr .cl small{display:block;color:var(--muted);font-weight:500;font-size:13px}
+.ctr button{width:52px;height:52px;border-radius:12px;border:1.5px solid var(--line);background:var(--raised);font:700 26px var(--font-mono)}
+.ctr .n{min-width:2.2ch;text-align:center;font:700 30px var(--font-mono)}
+
+/* ---------- vitals ---------- */
+.vgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.vital{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px;background:var(--surface);display:flex;flex-direction:column;gap:8px;min-width:0;--vc:var(--fg)}
+.vital.wide{grid-column:1/-1}
+.vital.k-hr{--vc:var(--hr)} .vital.k-spo2{--vc:var(--spo2)} .vital.k-bp{--vc:var(--bp)} .vital.k-et{--vc:var(--et)}
+.vl{display:flex;align-items:center;gap:6px;min-width:0;flex-wrap:wrap}
+.vl b{font:700 15px var(--font-cond);letter-spacing:.06em;text-transform:uppercase;color:var(--vc)}
+.vl .u{font-size:12px;color:var(--muted)}
+.na{margin-left:auto;flex:none;min-height:30px;padding:2px 9px;border-radius:7px;border:1.5px solid var(--line);font:700 12px var(--font-cond);letter-spacing:.08em;color:var(--muted)}
+.na.on{background:var(--fg);border-color:var(--fg);color:var(--bg)}
+.vin{width:100%;min-width:0;min-height:50px;font:700 26px var(--font-mono);font-variant-numeric:tabular-nums;background:var(--raised);border:1.5px solid var(--line);border-radius:9px;padding:6px 10px;color:var(--vc)}
+.vin::placeholder{color:var(--muted);opacity:.5}
+.vin.bad{border-color:var(--alert);background:var(--alert-soft)}
+.vin:disabled{opacity:.3}
+.vital.is-na .vin{display:none}
+.vital .natext{display:none;font:700 22px var(--font-mono);color:var(--muted);min-height:50px;align-items:center}
+.vital.is-na .natext{display:flex}
+.bp{display:flex;align-items:center;gap:4px}
+.bp .vin{font-size:22px;padding:6px 5px;text-align:center}
+.bp .slash{font:700 22px var(--font-mono);color:var(--muted)}
+.vlabel{font-size:12.5px;color:var(--muted)}
+.monhint{font-size:13px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 12px}
+.monhint i{font-style:normal;font-weight:700}
+
+/* lowest trackers + readings */
+.lowrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.lowv{min-width:84px}
+.lowv b{display:block;font:700 34px/1 var(--font-mono);color:var(--vc)}
+.lowv small{font-size:12.5px;color:var(--muted)}
+.lowadd{flex:1;display:flex;gap:8px;min-width:170px}
+.lowadd .vin{flex:1}
+.readings{display:flex;flex-wrap:wrap;gap:6px}
+.readings:empty{display:none}
+.rd{display:inline-flex;align-items:center;gap:6px;padding:4px 4px 4px 10px;border-radius:999px;background:var(--raised);border:1px solid var(--line);font:600 14px var(--font-mono)}
+.rd small{font-weight:500;font-size:11.5px;color:var(--muted)}
+.rd.fixed{padding-right:10px}
+.rd.low{border-color:var(--vc)}
+.rd button{min-width:30px;height:30px;border-radius:999px;color:var(--muted);font-size:16px;font-weight:700;padding:0 8px}
+.rd button.arm{font-size:12px}
+.win{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border-radius:var(--r-sm);border:1px solid var(--warn);background:var(--warn-soft);font-size:14px;font-variant-numeric:tabular-nums}
+.win b{font-size:15px}
+.win.closed{border-color:var(--line);background:var(--raised)}
+.win [data-tick]{font-family:var(--font-mono);font-weight:700}
+
+/* IQI post-intubation */
+.anchor{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:var(--r-sm);background:var(--raised)}
+.anchor .lbl{flex:1;font-weight:600;line-height:1.3}
+.anchor .lbl small{display:block;font-weight:500;color:var(--muted);font-size:13px}
+.due{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;font-size:14px;color:var(--muted)}
+.due b{font:700 22px var(--font-mono);color:var(--fg)}
+.ivt{display:flex;flex-direction:column;gap:8px}
+.iv{border:1.5px solid var(--line);border-radius:var(--r-sm);padding:10px 12px;display:grid;grid-template-columns:28px 1fr auto;gap:6px 10px;align-items:center;background:var(--surface)}
+.iv-n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font:700 14px var(--font-mono);background:var(--raised)}
+.iv-lbl{font:700 13px var(--font-cond);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.iv-rng{font:700 17px var(--font-mono);font-variant-numeric:tabular-nums}
+.iv-val{text-align:right;font:700 20px var(--font-mono);color:var(--bp);line-height:1.1}
+.iv-val small{display:block;font-size:13px;color:var(--hr)}
+.iv-val.none{color:var(--muted);font-size:16px}
+.iv-more{grid-column:1/-1;display:flex;flex-direction:column;gap:8px}
+.iv-act{display:flex;gap:8px;flex-wrap:wrap}
+.iv-act .btn{min-height:40px;padding:6px 12px;font-size:14px}
+.iv.now{border-color:var(--alert);background:var(--alert-soft)}
+.iv.now .iv-n{background:var(--alert);color:var(--on-alert)}
+.iv.future{opacity:.62}
+.iv.pending .iv-rng{color:var(--muted);font-size:15px}
+.nowtag{display:inline-block;margin-left:6px;font:700 11px var(--font-cond);letter-spacing:.1em;color:var(--alert)}
+.wave-stop{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--r-sm);background:var(--alert-soft);border:1px solid var(--alert);font-weight:700}
+.wave-stop span{display:inline-grid;place-items:center;min-width:52px;height:30px;padding:0 8px;border-radius:6px;background:var(--alert);color:var(--on-alert);font:700 13px var(--font-cond);letter-spacing:.1em}
+.rass{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:var(--r-sm);overflow:hidden}
+.rass button{display:grid;grid-template-columns:3.4ch 1fr;gap:10px;align-items:center;padding:11px 12px;text-align:left;background:var(--surface);line-height:1.3}
+.rass button+button{border-top:1px solid var(--line)}
+.rass button b{font:700 17px var(--font-mono)}
+.rass button.on{background:var(--accent);color:var(--accent-ink)}
+.rass-sel{display:flex;align-items:center;gap:12px;padding:12px;border-radius:var(--r-sm);background:var(--raised)}
+.rass-sel b{font:700 22px var(--font-mono)}
+.rass-sel span{flex:1;line-height:1.3}
+
+/* ---------- summary ---------- */
+.warns{border:1px solid var(--warn);background:var(--warn-soft);border-radius:var(--r-sm);padding:12px 14px}
+.warns b{display:block;margin-bottom:4px}
+.warns ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:4px;font-size:14.5px}
+.sum{margin-top:18px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.sum h3{padding:12px 14px;font:700 20px var(--font-cond);letter-spacing:.06em}
+.sum .grp{padding:7px 14px;font:700 12px var(--font-cond);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);background:var(--raised);border-top:1px solid var(--line)}
+.row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:9px 14px;border-top:1px solid var(--line)}
+.row .k{min-width:0;font-size:14.5px}
+.row .v{flex:none;max-width:58%;text-align:right;font:600 14.5px var(--font-mono);font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.row.miss .v{color:var(--warn)}
+.row.ref .k{color:var(--muted)}
+.sum-meta{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:14px;color:var(--muted)}
+.sum-meta b{color:var(--fg);font-family:var(--font-mono);font-weight:600}
+.sum-end{margin-top:22px;display:flex;flex-direction:column;gap:10px}
+
+/* ---------- sheet, alert bar, flash, toast ---------- */
+.sheetwrap{position:fixed;inset:0;z-index:60;display:flex;align-items:flex-end;justify-content:center}
+.scrim{position:absolute;inset:0;background:var(--scrim)}
+.sheet{position:relative;width:100%;max-width:560px;max-height:90%;overflow:auto;background:var(--surface);border-radius:18px 18px 0 0;border-top:1px solid var(--line);padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.sheet h3{font:700 21px var(--font-cond);letter-spacing:.03em;text-transform:uppercase}
+.sheet p{margin:0}
+.edtimes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.edtimes div{background:var(--raised);border-radius:var(--r-sm);padding:10px 12px}
+.edtimes span{display:block;font:700 12px var(--font-cond);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.edtimes b{font:700 28px var(--font-mono);font-variant-numeric:tabular-nums}
+.nudges{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.nudge{min-height:48px;border-radius:10px;border:1.5px solid var(--line);background:var(--raised);font:700 15px var(--font-mono)}
+.edin{display:flex;flex-direction:column;gap:10px}
+.row2{display:flex;gap:8px}
+.row2 input{flex:1;min-width:0;min-height:48px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--raised);font:600 20px var(--font-mono)}
+.sheet-actions{display:flex;gap:10px;flex-wrap:wrap}
+.sheet-actions .btn{flex:1}
+.opt{display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px;border-radius:var(--r-sm);border:2px solid var(--line);background:var(--raised)}
+.opt b{font:700 19px var(--font-cond);text-transform:uppercase;letter-spacing:.03em}
+.opt small{font-size:14px;color:var(--muted);line-height:1.35}
+.bvml{display:flex;flex-direction:column;gap:8px}
+.bvmi{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:var(--r-sm);background:var(--raised)}
+.bvmi .top{display:flex;align-items:center;gap:10px}
+.pill{font:700 12px var(--font-cond);letter-spacing:.07em;text-transform:uppercase;padding:4px 8px;border-radius:6px;border:1px solid var(--line);color:var(--muted)}
+.pill.anc{border-color:var(--alert);color:var(--alert)}
+.bvmi .acts{display:flex;gap:8px;flex-wrap:wrap}
+.bvmi .acts .btn{min-height:40px;padding:6px 12px;font-size:14px}
+.ivpick{display:flex;flex-wrap:wrap;gap:6px}
+.ivpick .chip{padding:6px 12px}
+textarea.copytxt{width:100%;min-height:50vh;border-radius:10px;border:1.5px solid var(--line);background:var(--raised);padding:10px;font:500 13px/1.45 var(--font-mono)}
+.abar{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--alert);color:var(--on-alert);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));box-shadow:0 -8px 24px rgba(0,0,0,.3)}
+.abar.amber{background:var(--warn);color:var(--on-warn)}
+.abar-in{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
+.abar-txt b{display:block;font:700 20px/1.15 var(--font-cond);text-transform:uppercase;letter-spacing:.03em}
+.abar-txt span{font-size:15px;font-variant-numeric:tabular-nums}
+.abar-btns{display:flex;gap:8px}
+.abar-btns button{flex:1;min-height:46px;border-radius:10px;font-weight:700;border:2px solid currentColor}
+.abar-btns button.fill{background:var(--on-alert);color:var(--alert);border-color:var(--on-alert)}
+.abar.amber .abar-btns button.fill{background:var(--on-warn);color:var(--warn);border-color:var(--on-warn)}
+.abar.pulse{animation:abar 1s ease-in-out 5}
+@keyframes abar{50%{filter:brightness(1.35)}}
+#flash{position:fixed;inset:0;z-index:45;pointer-events:none;opacity:0}
+#flash.red{box-shadow:inset 0 0 0 14px var(--alert);background:var(--alert-soft)}
+#flash.amber{box-shadow:inset 0 0 0 14px var(--warn);background:var(--warn-soft)}
+#flash.go{animation:flash 1s ease-in-out 5}
+@keyframes flash{0%,100%{opacity:0}35%,65%{opacity:1}}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;max-width:calc(100% - 32px);padding:10px 16px;border-radius:12px;background:var(--fg);color:var(--bg);font-weight:600;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+body.has-abar .toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+body.noscroll .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top,0px))}
+.vgrid>.txt{justify-content:flex-end}
+@media (prefers-reduced-motion: reduce){
+  #flash.go{animation:none;opacity:1}
+  .abar.pulse{animation:none}
+  .toast{transition:none}
+}
+@media (max-width:359px){
+  .vital.bpfull{grid-column:1/-1}
+}
+@media (max-width:370px){
+  .sw{font-size:38px}
+  .hdr-row{grid-template-columns:64px 1fr 64px}
+  .evt .lbl{font-size:17px}
+  .tp b{font-size:22px}
+}
+</style>
+</head>
+<body>
+<div id="flash" aria-hidden="true"></div>
+<div id="app"></div>
+<div class="sheetwrap" id="sheetwrap" hidden>
+  <div class="scrim" data-act="closeSheet"></div>
+  <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Details"></div>
+</div>
+<div class="abar" id="abar" role="alert" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(function(){
+'use strict';
+
+/* =========================================================
+   Basics
+   ========================================================= */
+var KEY = 'airwayStudyTimer.v1';
+var $ = function(s, r){ return (r || document).querySelector(s); };
+var $$ = function(s, r){ return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+function esc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(ch){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]; }); }
+function nowSec(){ return Math.floor(Date.now() / 1000); }
+function pad(n){ return String(n).padStart(2, '0'); }
+function fmtSW(sec){
+  if (sec == null || isNaN(sec)) return '--:--';
+  var neg = sec < 0, a = Math.abs(sec);
+  var h = Math.floor(a / 3600), m = Math.floor((a % 3600) / 60), s = a % 60;
+  return (neg ? '-' : '') + (h ? h + ':' + pad(m) : pad(m)) + ':' + pad(s);
+}
+function fmtClock(t){ if (t == null) return '--:--:--'; var d = new Date(t * 1000); return pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds()); }
+function fmtHM(t){ var d = new Date(t * 1000); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function fmtDate(t){ var d = new Date(t * 1000); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function fmtDateShort(t){ return new Date(t * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); }
+function fmtDur(sec){ if (sec < 0) sec = 0; var m = Math.floor(sec / 60), s = sec % 60; return m + ':' + pad(s); }
+function get(o, path){ return path.split('.').reduce(function(a, k){ return a == null ? a : a[k]; }, o); }
+function setp(o, path, v){ var ks = path.split('.'); var last = ks.pop(); var tgt = ks.reduce(function(a, k){ return a[k]; }, o); tgt[last] = v; }
+function pid(path){ return 'f-' + path.replace(/\./g, '-'); }
+function clone(o){ return JSON.parse(JSON.stringify(o)); }
+
+var YN = ['Yes', 'No'];
+var STUDIES = [
+  { k: 'iqi',   name: 'IQI',   desc: 'Screening, RASS, baseline and RSI vitals, stopwatch steps, RSI meds, 5-min vitals, interval lows, post-intubation sedative' },
+  { k: 'angle', name: 'ANGLE', desc: 'Live section only: clock times, entry counts, vitals at meds pushed, lowest SpO₂ and SBP to 2 min after tube, vasopressor' },
+  { k: 'wave',  name: 'WAVE',  desc: 'Step 1 vitals, CO₂ confirmation after 7 breaths, Step 4 values, 20-minute outcomes' }
+];
+var RASS = [
+  ['-5', 'No response to voice or physical stimulation'],
+  ['-4', 'Responds to physical stimulation (but not to voice)'],
+  ['-3', 'Responds to voice by moving or eye opening'],
+  ['-2', 'Briefly awakens to voice, with eye contact < 10 sec'],
+  ['-1', 'Not fully alert, but has eye contact > 10 sec'],
+  ['0',  'Alert and calm'],
+  ['+1', 'Restless: anxious but movements are not aggressive'],
+  ['+2', 'Agitated: frequent non-purposeful movements'],
+  ['>+3','Very agitated: pulls or removes tubes, fights care']
+];
+var SEDATIVES = ['None', 'Etomidate', 'Ketamine', 'Propofol', 'Midazolam', 'Methohexital'];
+var PARALYTICS = ['None', 'Succinylcholine', 'Rocuronium', 'Cisatracurium'];
+var ROUTES = ['IM', 'IV', 'IO'];
+var POST_SED = ['Midazolam (Versed)', 'Ketamine', 'Propofol'];
+var WHY = ['Bronchoscopy', 'Video laryngoscopy', 'Thoracic or tracheal ultrasound', 'Esophageal detector device (Wee)', 'Other'];
+/* IQI intervals, seconds after the anchor BVM breath (inclusive) */
+var IV = [
+  { a: 300,  b: 600,  label: '5:00–10:00' },
+  { a: 601,  b: 900,  label: '10:01–15:00' },
+  { a: 901,  b: 1200, label: '15:01–20:00' },
+  { a: 1201, b: 1500, label: '20:01–25:00' },
+  { a: 1501, b: 1800, label: '25:01–30:00' }
+];
+var RANGE = { hr: 300, spo2: 100, s: 300, d: 250, et: 150 };
+var EVL = { start: 'RSI meds pushed', bladeIn: 'Blade first entered mouth', tube: 'Tube placed in airway', bladeOut: 'Blade removed from mouth', post: 'First sedative after intubation' };
+
+/* =========================================================
+   State + storage
+   ========================================================= */
+function vset(){ return { hr: { v: '', na: false }, spo2: { v: '', na: false }, bp: { s: '', d: '', na: false }, et: { v: '', na: false } }; }
+function blankCase(){
+  return {
+    id: '', created: 0, studies: { iqi: false, angle: false, wave: false }, recordId: '', done: false, doneAt: null,
+    noMeds: false, prefillNone: false, start: null,
+    ev: { bladeIn: null, tube: null, bladeOut: null },
+    bvm: [],
+    counts: { blade: null, bougie: null, ett: null },
+    v: { base: vset(), rsi: vset(), five: vset(), waveEt: { v: '', na: false }, waveSbp: { s: '', d: '', na: false } },
+    low: { spo2: { r: [], na: false }, sbp: { r: [], na: false } },
+    iv: [0, 1, 2, 3, 4].map(function(){ return { r: [], na: false }; }),
+    iqi: { intox: '', incl: '', rassA: '', rassB: '', sed: { drug: '', dose: '', route: '' }, par: { drug: '', dose: '', route: '' }, first: '', post: { none: false, t: null, drug: '', dose: '', rate: '' } },
+    angle: { vasoPre: '', vasoPost: '' },
+    wave: { info: '', initials: '', s2: '', s2o: '', s3: '', s3o: '', cpr: '', q1: '', q2: '', q3: '', q4: '', loc: '', why: [], whyOther: '' },
+    alerts: {}
+  };
+}
+function merge(base, src){
+  if (src == null || typeof src !== 'object' || Array.isArray(base)) return src == null ? base : src;
+  Object.keys(src).forEach(function(k){
+    if (base[k] != null && typeof base[k] === 'object' && !Array.isArray(base[k]) && src[k] && typeof src[k] === 'object') base[k] = merge(base[k], src[k]);
+    else base[k] = src[k];
+  });
+  return base;
+}
+function newCase(studies){
+  var c = blankCase();
+  c.id = 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  c.created = nowSec();
+  c.studies = { iqi: !!studies.iqi, angle: !!studies.angle, wave: !!studies.wave };
+  return c;
+}
+
+var S = { cases: {}, activeId: null, settings: { sound: true, theme: 'auto', last: { iqi: true, angle: false, wave: false } } };
+var storageOK = true;
+function load(){
+  try {
+    var raw = localStorage.getItem(KEY);
+    if (raw) {
+      var d = JSON.parse(raw);
+      if (d && d.cases) {
+        S.activeId = d.activeId || null;
+        S.settings = merge(clone(S.settings), d.settings || {});
+        Object.keys(d.cases).forEach(function(id){ S.cases[id] = merge(blankCase(), d.cases[id]); });
+      }
+    }
+  } catch (e) { storageOK = false; }
+}
+var saveTimer = null;
+function write(){ try { localStorage.setItem(KEY, JSON.stringify(S)); storageOK = true; } catch (e) { storageOK = false; } }
+function save(now){ clearTimeout(saveTimer); if (now) write(); else saveTimer = setTimeout(write, 250); }
+
+var UI = { view: 'home', tab: 'during', sheet: null, alert: null, newSt: null, rassOpen: {} };
+function C(){ return S.activeId ? S.cases[S.activeId] || null : null; }
+
+/* =========================================================
+   Timing model
+   ========================================================= */
+function startSec(c){ return c.noMeds ? c.ev.bladeIn : c.start; }
+function sw(c, t){ var s = startSec(c); return (t == null || s == null) ? null : t - s; }
+function bvmSorted(c){ return c.bvm.map(function(b, i){ return { t: b.t, mode: b.mode, i: i }; }).sort(function(a, b){ return a.t - b.t || a.i - b.i; }); }
+function bvmStatus(c, b){
+  if (b.mode === 'post') return 'post';
+  if (b.mode === 'pre') return 'pre';
+  return (c.ev.tube != null && b.t >= c.ev.tube) ? 'post' : 'pre';
+}
+/* Anchor = first BVM breath recorded after the tube was placed */
+function anchor(c){ var l = bvmSorted(c); for (var i = 0; i < l.length; i++) if (bvmStatus(c, l[i]) === 'post') return l[i]; return null; }
+function ivRanges(c){
+  var a = anchor(c); if (!a) return null; var A = sw(c, a.t);
+  return IV.map(function(x){ return { label: x.label, s: A + x.a, e: A + x.b, ts: a.t + x.a, te: a.t + x.b }; });
+}
+/* -2 = before 5:00, 0..4 = interval index, 5 = after 30:00, -1 = no anchor */
+function currentIv(c, t){
+  var a = anchor(c); if (!a) return -1; var d = (t == null ? nowSec() : t) - a.t;
+  if (d < 300) return -2; if (d > 1800) return 5;
+  for (var k = 0; k < 5; k++) if (d <= IV[k].b) return k;
+  return 5;
+}
+function num(v){ var n = parseFloat(v); return isNaN(n) ? null : n; }
+function ivCandidates(c, k){
+  var list = c.iv[k].r.map(function(r, i){ return { s: r.s, d: r.d, hr: r.hr, t: r.t, i: i, src: 'log' }; });
+  if (k === 0) {
+    var f = c.v.five, a = anchor(c);
+    if (!f.bp.na && f.bp.s !== '') list.push({ s: f.bp.s, d: f.bp.d, hr: f.hr.na ? 'N/A' : f.hr.v, t: a ? a.t + 300 : 0, src: 'five' });
+  }
+  return list;
+}
+function ivLowest(c, k){
+  var best = null;
+  ivCandidates(c, k).forEach(function(r){
+    var v = num(r.s); if (v == null) return;
+    if (!best || v < num(best.s) || (v === num(best.s) && r.t < best.t)) best = r;
+  });
+  return best;
+}
+function lowCandidates(c, key){
+  var list = c.low[key].r.map(function(r, i){ return { v: r.v, t: r.t, i: i, src: 'log' }; });
+  var rv = key === 'spo2' ? c.v.rsi.spo2 : c.v.rsi.bp;
+  var val = key === 'spo2' ? rv.v : rv.s;
+  if (!rv.na && val !== '' && startSec(c) != null) list.push({ v: val, t: startSec(c), src: 'rsi' });
+  return list;
+}
+function lowLowest(c, key){
+  var best = null;
+  lowCandidates(c, key).forEach(function(r){ var v = num(r.v); if (v == null) return; if (!best || v < num(best.v) || (v === num(best.v) && r.t < best.t)) best = r; });
+  return best;
+}
+function getT(c, key){
+  if (key === 'start') return startSec(c);
+  if (key === 'post') return c.iqi.post.t;
+  if (key.indexOf('bvm:') === 0) { var b = c.bvm[+key.slice(4)]; return b ? b.t : null; }
+  return c.ev[key];
+}
+function setT(c, key, t){
+  if (key === 'start') { if (c.noMeds) c.ev.bladeIn = t; else c.start = t; return; }
+  if (key === 'post') { c.iqi.post.t = t; return; }
+  if (key.indexOf('bvm:') === 0) { var i = +key.slice(4); if (t == null) c.bvm.splice(i, 1); else if (c.bvm[i]) c.bvm[i].t = t; return; }
+  c.ev[key] = t;
+}
+function isStartKey(c, key){ return key === 'start' || (c.noMeds && key === 'bladeIn'); }
+function canClear(c, key){
+  if (!isStartKey(c, key)) return true;
+  return c.ev.tube == null && c.ev.bladeOut == null && (c.noMeds || c.ev.bladeIn == null) && !c.bvm.length && c.iqi.post.t == null;
+}
+function keyLabel(c, key){
+  if (key.indexOf('bvm:') === 0) return 'BVM breath';
+  if (key === 'bladeIn' && c.noMeds) return 'Blade first entered mouth (stopwatch start)';
+  return EVL[key];
+}
+
+/* =========================================================
+   Alerts
+   ========================================================= */
+function alertDefs(c){
+  var out = []; if (startSec(c) == null) return out;
+  if (c.studies.iqi) {
+    var a = anchor(c);
+    if (a) {
+      var R = ivRanges(c), go = { tab: 'after', id: 'sec-iqi-post' };
+      out.push({ id: 'iv0', t: a.t + 300, kind: 'iqi', title: '5-min vitals now · Interval 1 started', msg: 'Record HR, SpO₂, BP and EtCO₂. Interval 1 runs ' + fmtSW(R[0].s) + '–' + fmtSW(R[0].e) + '.', go: go });
+      for (var k = 1; k < 5; k++) out.push({ id: 'iv' + k, t: a.t + IV[k].a, kind: 'iqi', title: 'Interval ' + (k + 1) + ' of 5 started', msg: 'Lowest SBP and HR for ' + fmtSW(R[k].s) + '–' + fmtSW(R[k].e) + '. Interval ' + k + ' has closed.', go: go });
+      out.push({ id: 'ivdone', t: a.t + 1801, kind: 'iqi', title: 'Post-intubation monitoring complete', msg: 'Interval 5 ended at ' + fmtSW(R[4].e) + '.', go: go });
+    }
+  }
+  if (c.studies.angle && c.ev.tube != null) out.push({ id: 'angle2', t: c.ev.tube + 120, kind: 'amber', title: '2 min after tube placed', msg: 'The ANGLE lowest SpO₂ / SBP window has closed.', go: { tab: 'during', id: 'sec-angle' } });
+  if (c.studies.wave && c.ev.tube != null) out.push({ id: 'wave20', t: c.ev.tube + 1200, kind: 'amber', title: '20 min after tube placed', msg: 'Answer WAVE Step 5 (20-minute outcomes).', go: { tab: 'after', id: 'sec-wave5' } });
+  return out;
+}
+function checkAlerts(){
+  var c = C(); if (!c || c.done) return;
+  var n = nowSec();
+  var due = alertDefs(c).filter(function(a){
+    if (n < a.t || n - a.t > 900) return false;              // not yet, or too old to be useful
+    var prev = c.alerts[a.id];
+    return !(prev != null && Math.abs(prev - a.t) <= 60);       // already fired for (about) this time
+  });
+  if (!due.length) return;
+  due.sort(function(x, y){ return x.t - y.t; });
+  due.forEach(function(a){ c.alerts[a.id] = a.t; });
+  save(true);
+  fireAlert(due[due.length - 1]);
+}
+var actx = null;
+function unlockAudio(){
+  try {
+    if (!actx) { var AC = window.AudioContext || window.webkitAudioContext; if (AC) actx = new AC(); }
+    if (actx && actx.state === 'suspended') actx.resume();
+  } catch (e) {}
+}
+function beep(kind){
+  if (!S.settings.sound || !actx) return;
+  try {
+    var t0 = actx.currentTime + 0.02, f = kind === 'iqi' ? 880 : 660;
+    for (var i = 0; i < 3; i++) {
+      var o = actx.createOscillator(), g = actx.createGain(), st = t0 + i * 0.36;
+      o.type = 'square'; o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, st);
+      g.gain.exponentialRampToValueAtTime(0.25, st + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.24);
+      o.connect(g); g.connect(actx.destination); o.start(st); o.stop(st + 0.26);
+    }
+  } catch (e) {}
+}
+function flash(kind){
+  var f = $('#flash'); f.className = ''; void f.offsetWidth;
+  f.className = 'go ' + (kind === 'iqi' ? 'red' : 'amber');
+  clearTimeout(f._t); f._t = setTimeout(function(){ f.className = ''; }, 5200);
+}
+function fireAlert(a){
+  UI.alert = a; renderAlertBar();
+  var b = $('#abar'); b.classList.remove('pulse'); void b.offsetWidth; b.classList.add('pulse');
+  flash(a.kind); beep(a.kind);
+  try { if (navigator.vibrate) navigator.vibrate([350, 150, 350, 150, 350]); } catch (e) {}
+}
+
+/* =========================================================
+   Screen wake lock
+   ========================================================= */
+var wl = null, wlState = 'off';
+function wantWake(){ var c = C(); return !!(c && !c.done && startSec(c) != null); }
+function syncWake(){
+  var want = wantWake();
+  if (!('wakeLock' in navigator)) { wlState = 'unsupported'; updateWake(); return; }
+  if (want && !wl && document.visibilityState === 'visible') {
+    navigator.wakeLock.request('screen').then(function(l){
+      wl = l; wlState = 'on'; updateWake();
+      l.addEventListener('release', function(){ wl = null; wlState = 'off'; updateWake(); });
+    }).catch(function(){ wlState = 'denied'; updateWake(); });
+  } else if (!want && wl) {
+    try { wl.release(); } catch (e) {}
+    wl = null; wlState = 'off'; updateWake();
+  }
+}
+function updateWake(){
+  var el = $('#wake'); if (!el) return;
+  el.textContent = (wantWake() && wlState !== 'on') ? 'Screen may sleep. Keep the phone unlocked so alerts can fire.' : '';
+}
+
+/* =========================================================
+   Small HTML helpers
+   ========================================================= */
+function tag(k){ return '<span class="studytag">' + k + '</span>'; }
+function tagsFor(c, ks){ return '<span class="tg">' + ks.filter(function(k){ return c.studies[k]; }).map(function(k){ return tag(k.toUpperCase()); }).join('') + '</span>'; }
+function note(html, kind){ return '<div class="note ' + (kind || '') + '">' + html + '</div>'; }
+function q(title, hint, body, id){ return '<div class="q"' + (id ? ' id="' + id + '"' : '') + '><p class="qt">' + title + '</p>' + (hint ? '<p class="hint">' + hint + '</p>' : '') + body + '</div>'; }
+function chips(c, path, opts){
+  var cur = get(c, path);
+  return '<div class="chips" role="group">' + opts.map(function(o){
+    var on = cur === o;
+    return '<button class="chip' + (on ? ' on' : '') + '" data-act="set" data-path="' + path + '" data-val="' + esc(o) + '" aria-pressed="' + on + '">' + esc(o) + '</button>';
+  }).join('') + '</div>';
+}
+function multiChips(c, path, opts){
+  var cur = get(c, path) || [];
+  return '<div class="chips" role="group">' + opts.map(function(o){
+    var on = cur.indexOf(o) >= 0;
+    return '<button class="chip' + (on ? ' on' : '') + '" data-act="toggleArr" data-path="' + path + '" data-val="' + esc(o) + '" aria-pressed="' + on + '">' + esc(o) + '</button>';
+  }).join('') + '</div>';
+}
+function textIn(c, path, label, kind){
+  return '<label class="txt"><span>' + label + '</span><input id="' + pid(path) + '" data-bind="' + path + '" data-kind="' + (kind || 'text') + '"' +
+    (kind === 'dec' ? ' inputmode="decimal"' : '') + ' autocomplete="off" maxlength="60" value="' + esc(get(c, path)) + '"></label>';
+}
+function numIn(path, val, dis, aria, max){
+  return '<input class="vin' + (val !== '' && +val > max ? ' bad' : '') + '" id="' + pid(path) + '" data-bind="' + path + '" data-kind="int" data-max="' + max + '" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="–" value="' + esc(val) + '"' + (dis ? ' disabled' : '') + ' aria-label="' + esc(aria) + '">';
+}
+var VMETA = { hr: ['HR', 'bpm'], spo2: ['SpO₂', '%'], et: ['EtCO₂', 'mmHg'], bp: ['BP', 'mmHg'] };
+/* kind: hr|spo2|et|bp ; mode for bp: 'full' (S/D) or 'sbp' */
+function vitalCard(c, path, kind, opt){
+  opt = opt || {};
+  var o = get(c, path), na = !!o.na, meta = VMETA[kind];
+  var label = opt.label || (kind === 'bp' && opt.mode === 'sbp' ? 'SBP' : meta[0]);
+  var inputs;
+  if (kind === 'bp') {
+    inputs = opt.mode === 'sbp'
+      ? numIn(path + '.s', o.s, na, label, RANGE.s)
+      : '<div class="bp">' + numIn(path + '.s', o.s, na, label + ' systolic', RANGE.s) + '<span class="slash">/</span>' + numIn(path + '.d', o.d, na, label + ' diastolic', RANGE.d) + '</div>';
+  } else inputs = numIn(path + '.v', o.v, na, label, RANGE[kind]);
+  return '<div class="vital k-' + kind + (kind === 'bp' && opt.mode !== 'sbp' ? ' bpfull' : '') + (na ? ' is-na' : '') + '">' +
+    '<div class="vl"><b>' + label + '</b><span class="u">' + meta[1] + '</span>' +
+    '<button class="na' + (na ? ' on' : '') + '" data-act="na" data-path="' + path + '" aria-pressed="' + na + '" aria-label="' + esc(label + ': ' + (opt.naLabel || 'not available')) + '">N/A</button></div>' +
+    inputs + '<div class="natext">N/A</div>' + (opt.sub ? '<div class="vlabel">' + opt.sub + '</div>' : '') + '</div>';
+}
+function timePair(c, t){
+  var s = startSec(c), swv = s == null ? '--:--' : fmtSW(t - s), clk = fmtClock(t);
+  return c.studies.iqi
+    ? '<span class="tp"><b>' + swv + '</b><small>' + clk + '</small></span>'
+    : '<span class="tp"><b>' + clk + '</b><small>SW ' + swv + '</small></span>';
+}
+var ICON_BACK = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>';
+var ICON_MARK = '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" aria-hidden="true"><circle cx="24" cy="27" r="16"/><path d="M19 5h10M24 5v6M36 13l3-3"/><path d="M24 27V17"/><path d="M8 27h6l3-6 4 12 3-6h16" stroke-width="2.4" opacity=".55"/></svg>';
+
+/* =========================================================
+   Render: shell
+   ========================================================= */
+function render(){
+  var app = $('#app');
+  if (UI.view === 'case' && !C()) UI.view = 'home';
+  app.innerHTML = UI.view === 'home' ? homeHTML() : caseHTML(C());
+  refreshDerived();
+  updateWake();
+  renderAlertBar();
+  renderSheet();
+}
+
+/* ---------- home ---------- */
+function presetOn(ns, v){
+  return v === 'iqi' ? (ns.iqi && !ns.angle && !ns.wave) : v === 'aw' ? (!ns.iqi && ns.angle && ns.wave) : (ns.iqi && ns.angle && ns.wave);
+}
+function studyText(c){ return ['iqi', 'angle', 'wave'].filter(function(k){ return c.studies[k]; }).map(function(k){ return k.toUpperCase(); }).join(' + '); }
+function homeHTML(){
+  var list = Object.keys(S.cases).map(function(k){ return S.cases[k]; }).sort(function(a, b){ return b.created - a.created; });
+  var ns = UI.newSt || (UI.newSt = clone(S.settings.last));
+  var act = C(); if (act && act.done) act = null;
+  var h = '<main class="wrap home">';
+  h += '<header class="brand"><div class="mark">' + ICON_MARK + '</div><div><h1>Airway Study Timer</h1><p>IQI · ANGLE · WAVE</p></div></header>';
+  if (!storageOK) h += '<div class="sec">' + note('This browser is blocking storage. Keep this tab open: cases will be lost if the page reloads.', 'warn') + '</div>';
+  if (act) {
+    var s = startSec(act);
+    h += '<section class="sec"><button class="resume" data-act="open" data-id="' + act.id + '"><span><b>Resume case</b><span>' + studyText(act) + ' · ' + (s == null ? 'not started' : 'started ' + fmtClock(s)) + '</span></span>' +
+      (s != null ? '<span class="mono" data-tick="since" data-from="' + s + '"></span>' : '') + '</button></section>';
+  }
+  h += '<section class="sec"><div class="sec-h"><h2>New case</h2></div><div class="card">' +
+    '<p class="hint">Pick what you are collecting on this phone. Usually one intern runs IQI and the other runs ANGLE + WAVE.</p>' +
+    '<div class="chips">' + [['iqi', 'IQI'], ['aw', 'ANGLE + WAVE'], ['all', 'All three']].map(function(p){
+      var on = presetOn(ns, p[0]); return '<button class="chip' + (on ? ' on' : '') + '" data-act="preset" data-val="' + p[0] + '" aria-pressed="' + on + '">' + p[1] + '</button>';
+    }).join('') + '</div>' +
+    '<div class="stl">' + STUDIES.map(function(st){
+      return '<button class="st' + (ns[st.k] ? ' on' : '') + '" data-act="stToggle" data-k="' + st.k + '" aria-pressed="' + !!ns[st.k] + '"><span class="box"></span><span><b>' + st.name + '</b><small>' + st.desc + '</small></span></button>';
+    }).join('') + '</div>' +
+    (act && startSec(act) != null ? note('A case is in progress. Opening a new case stops its alerts until you reopen it.', 'warn') : '') +
+    '<button class="btn primary big" data-act="create">Open new case</button></div></section>';
+  h += '<section class="sec"><div class="sec-h"><h2>Saved cases</h2><span class="hint">' + (list.length ? list.length : '') + '</span></div><div class="list">' +
+    (list.length ? list.map(caseRow).join('') : '<p class="empty">No cases yet. Each case is saved here so you can finish transcribing after the intubation.</p>') + '</div></section>';
+  h += '<section class="sec"><div class="sec-h"><h2>Settings</h2></div><div class="card">' +
+    '<div class="setrow"><span>Alert sound</span><div class="chips">' + ['On', 'Off'].map(function(v){ var on = (v === 'On') === !!S.settings.sound; return '<button class="chip' + (on ? ' on' : '') + '" data-act="sound" data-val="' + v + '" aria-pressed="' + on + '">' + v + '</button>'; }).join('') + '</div></div>' +
+    '<div class="setrow"><span>Theme</span><div class="chips">' + [['auto', 'Auto'], ['dark', 'Dark'], ['light', 'Light']].map(function(p){ var on = S.settings.theme === p[0]; return '<button class="chip' + (on ? ' on' : '') + '" data-act="theme" data-val="' + p[0] + '" aria-pressed="' + on + '">' + p[1] + '</button>'; }).join('') + '</div></div>' +
+    '<button class="btn" data-act="testAlert">Test alert (flash, sound, vibration)</button>' +
+    '<p class="hint">Alerts flash red and beep when each IQI interval starts. Phones pause web pages when locked, so keep this page open and the screen on during a case. Sound follows the ringer switch on iPhone. Vibration works on Android only.</p>' +
+    '</div></section>';
+  h += '<p class="foot">Cases are saved only in this browser on this phone. Do not enter names or MRNs. Clearing browser data deletes saved cases.</p>';
+  return h + '</main>';
+}
+function caseRow(c){
+  var s = startSec(c), st = c.done ? 'Finished' : s == null ? 'Not started' : 'In progress';
+  return '<div class="crow"><button class="crow-main" data-act="open" data-id="' + c.id + '"><b>' + fmtDateShort(c.created) + ' · ' + fmtHM(c.created) + ' · ' + studyText(c) + '</b>' +
+    '<span class="crow-s">' + (c.recordId ? 'ID ' + esc(c.recordId) + ' · ' : '') + st + (s != null ? ' · 0:00 at ' + fmtClock(s) : '') + '</span></button>' +
+    '<button class="crow-del" data-act="delCase" data-id="' + c.id + '" data-confirm="1">Delete</button></div>';
+}
+
+/* ---------- case shell ---------- */
+function tabsFor(c){ var t = []; if (c.studies.iqi) t.push(['before', 'Before']); t.push(['during', 'During'], ['after', 'After'], ['summary', 'Summary']); return t; }
+function caseHTML(c){
+  var tabs = tabsFor(c);
+  if (!tabs.some(function(t){ return t[0] === UI.tab; })) UI.tab = tabs[0][0];
+  var s = startSec(c);
+  var sub = c.done ? 'Finished' : s != null ? '0:00 at <b>' + fmtClock(s) + '</b>' : (c.noMeds ? 'Starts at blade entry' : 'Not started');
+  var h = '<header class="hdr"><div class="hdr-in"><div class="hdr-row">' +
+    '<button class="back" data-act="home">' + ICON_BACK + 'Cases</button>' +
+    '<div class="clockblk"><div class="sw" data-tick="elapsed" aria-label="Stopwatch">00:00</div><div class="sw-sub">' + sub + ' · now <span data-tick="now"></span></div></div>' +
+    '<div class="tags">' + ['iqi', 'angle', 'wave'].filter(function(k){ return c.studies[k]; }).map(function(k){ return tag(k.toUpperCase()); }).join('') + '</div></div>' +
+    '<div class="status" data-derive="status"></div><div class="wake" id="wake"></div>' +
+    '<nav class="tabs" role="tablist">' + tabs.map(function(t){ return '<button class="tab" role="tab" data-act="tab" data-tab="' + t[0] + '" aria-selected="' + (UI.tab === t[0]) + '">' + t[1] + '</button>'; }).join('') + '</nav>' +
+    '</div></header><main class="wrap" id="main">';
+  h += UI.tab === 'before' ? beforeHTML(c) : UI.tab === 'during' ? duringHTML(c) : UI.tab === 'after' ? afterHTML(c) : summaryHTML(c);
+  return h + '</main>';
+}
+
+/* ---------- BEFORE (IQI) ---------- */
+function rassBlock(c, path, title, hint){
+  var cur = get(c, path), body;
+  if (cur && !UI.rassOpen[path]) {
+    var d = RASS.filter(function(r){ return r[0] === cur; })[0];
+    body = '<div class="rass-sel"><b>' + esc(cur) + '</b><span>' + esc(d ? d[1] : '') + '</span><button class="btn ghost" data-act="rassOpen" data-path="' + path + '">Change</button></div>';
+  } else {
+    body = '<div class="rass" role="group">' + RASS.map(function(r){
+      var on = cur === r[0];
+      return '<button class="' + (on ? 'on' : '') + '" data-act="rassSet" data-path="' + path + '" data-val="' + esc(r[0]) + '" aria-pressed="' + on + '"><b>' + esc(r[0]) + '</b><span>' + esc(r[1]) + '</span></button>';
+    }).join('') + '</div>';
+  }
+  return q(title, hint, body);
+}
+function beforeHTML(c){
+  var h = '<section class="sec" id="sec-id">' + textIn(c, 'recordId', 'Record ID (no names or MRNs)') + '</section>';
+  h += '<section class="sec" id="sec-screen"><div class="sec-h"><h2>Screening</h2>' + tag('IQI') + '</div>' +
+    q('Was the patient intubated for <u>suspected</u> intoxication?', 'Ask the intubating provider. Alcohol alone, drugs alone, or drugs and alcohol.', chips(c, 'iqi.intox', YN)) +
+    (c.iqi.intox === 'Yes' ? note('HICCUP includes patients undergoing oral intubation for suspected intoxication who are 18 or older and NOT in alcohol withdrawal. If all of that applies, the intubating provider should fill out the HICCUP form.', 'warn') : '') +
+    q('Inclusion: patient undergoing airway management in the stabilization room?', 'Proceed with data collection only if Yes.', chips(c, 'iqi.incl', YN)) +
+    (c.iqi.incl === 'No' ? note('Inclusion criteria not met. Do not collect IQI data for this patient.', 'alert') : '') +
+    '</section>';
+  h += '<section class="sec" id="sec-rass"><div class="sec-h"><h2>RASS</h2>' + tag('IQI') + '</div>' +
+    rassBlock(c, 'iqi.rassA', 'At stabilization room arrival', '') +
+    rassBlock(c, 'iqi.rassB', 'Right before RSI administration', 'If no RSI administration, then when the blade enters the mouth.') + '</section>';
+  h += '<section class="sec" id="sec-base"><div class="sec-h"><h2>Baseline vitals</h2>' + tag('IQI') + '</div>' +
+    '<p class="hint">After the decision to intubate, before starting the stopwatch. Tap N/A if not available before intubation.</p>' +
+    '<div class="vgrid">' + vitalCard(c, 'v.base.hr', 'hr') + vitalCard(c, 'v.base.spo2', 'spo2') + vitalCard(c, 'v.base.et', 'et') + vitalCard(c, 'v.base.bp', 'bp', { mode: 'full' }) + '</div></section>';
+  h += '<div class="next"><button class="btn primary big" data-act="tab" data-tab="during">Go to stopwatch</button></div>';
+  return h;
+}
+
+/* ---------- DURING ---------- */
+function evtRow(c, k){
+  var t = c.ev[k], s = startSec(c);
+  var isStarter = c.noMeds && k === 'bladeIn' && s == null;
+  if (t != null) return '<button class="evt done" data-act="editEvt" data-key="' + k + '"><span class="lbl">' + EVL[k] + '</span>' + timePair(c, t) + '<span class="ed">Edit</span></button>';
+  var enabled = s != null || isStarter;
+  var need = k === 'tube' && c.bvm.some(function(b){ return b.mode === 'post'; });
+  var sub = isStarter ? '<small>Starts the stopwatch (no RSI meds).</small>' : need ? '<small>Needed: a BVM through the tube was logged. Tap now, then fix the time.</small>' : '';
+  return '<button class="evt ' + (isStarter ? 'start' : need ? 'need' : enabled ? 'ready' : '') + '" data-act="evt" data-key="' + k + '"' + (enabled ? '' : ' disabled') + '><span class="lbl">' + EVL[k] + sub + '</span><span class="go">' + (isStarter ? 'START' : 'TAP') + '</span></button>';
+}
+function bvmRow(c){
+  var a = anchor(c), s = startSec(c);
+  var pre = c.bvm.filter(function(b){ return bvmStatus(c, b) === 'pre'; });
+  if (a) return '<button class="evt done" data-act="bvmSheet"><span class="lbl">First BVM breath<small>After tube placed' + (pre.length ? ' · ' + pre.length + ' earlier between attempts' : '') + '</small></span>' + timePair(c, a.t) + '<span class="ed">Edit</span></button>';
+  var en = s != null;
+  return '<button class="evt' + (en ? ' ready' : '') + '" data-act="bvm"' + (en ? '' : ' disabled') + '><span class="lbl">First BVM breath<small>' +
+    (pre.length ? pre.length + ' logged between attempts. Tap again at the first BVM after the tube is placed.' : 'Clear/white bag. Post-intubation timing starts at the first BVM after tube placement.') +
+    '</small></span><span class="go">TAP</span></button>' +
+    (pre.length ? '<button class="link" data-act="bvmSheet">Review BVM entries</button>' : '');
+}
+function eventsHTML(c){
+  var s = startSec(c), h = '';
+  if (s == null && !c.noMeds) {
+    h += '<button class="evt start" data-act="startMeds"><span class="lbl">RSI meds pushed<small>Starts the stopwatch. Tap when the first RSI med is in (plunger all the way down).</small></span><span class="go">START</span></button>' +
+      '<button class="btn ghost" data-act="noMeds">No RSI meds given</button>';
+  } else if (c.noMeds && s == null) {
+    h += note('No RSI meds. The stopwatch starts when the blade first enters the mouth. <button class="link" data-act="undoNoMeds">Undo</button>');
+  } else {
+    h += '<button class="evt done" data-act="editEvt" data-key="' + (c.noMeds ? 'bladeIn' : 'start') + '"><span class="lbl">' + (c.noMeds ? 'Blade first entered mouth' : 'RSI meds pushed') + '<small>' + (c.noMeds ? 'Stopwatch start · no RSI meds' : 'Stopwatch start') + '</small></span>' + timePair(c, s) + '<span class="ed">Edit</span></button>';
+  }
+  if (!(c.noMeds && s != null)) h += evtRow(c, 'bladeIn');
+  h += evtRow(c, 'tube');
+  if (c.studies.iqi) { h += evtRow(c, 'bladeOut'); h += bvmRow(c); }
+  return '<div class="evts">' + h + '</div>';
+}
+function counter(c, k, label, sub){
+  var v = c.counts[k];
+  return '<div class="ctr"><div class="cl">' + label + (sub ? '<small>' + sub + '</small>' : '') + '</div>' +
+    '<button data-act="cnt" data-k="' + k + '" data-d="-1" aria-label="' + esc(label) + ' minus one">−</button>' +
+    '<span class="n" aria-live="polite">' + (v == null ? '–' : v) + '</span>' +
+    '<button data-act="cnt" data-k="' + k + '" data-d="1" aria-label="' + esc(label) + ' plus one">+</button></div>';
+}
+function duringHTML(c){
+  var iqi = c.studies.iqi, angle = c.studies.angle, wave = c.studies.wave;
+  var h = '<section class="sec" id="sec-sw"><div class="sec-h"><h2>Stopwatch</h2><span class="hint">Any order. Tap a recorded step to fix it.</span></div>' + eventsHTML(c) + '</section>';
+  var cards = '';
+  if (iqi || wave) cards += vitalCard(c, 'v.rsi.hr', 'hr');
+  cards += vitalCard(c, 'v.rsi.spo2', 'spo2', { label: iqi || wave ? null : 'O₂ sat' });
+  if (iqi || wave) cards += vitalCard(c, 'v.rsi.et', 'et');
+  cards += vitalCard(c, 'v.rsi.bp', 'bp', { mode: iqi ? 'full' : 'sbp' });
+  h += '<section class="sec" id="sec-rsiv"><div class="sec-h"><h2>Vitals as RSI meds pushed</h2>' + tagsFor(c, ['iqi', 'angle', 'wave']) + '</div>' +
+    '<p class="hint">' + (c.noMeds ? 'No RSI meds were given. Use N/A where the study asks for values at meds pushed and none apply.' : 'Record as the RSI medications are pushed. Tap N/A if not available.') + (wave ? ' WAVE Step 1 uses these.' : '') + '</p>' +
+    '<div class="vgrid">' + cards + '</div></section>';
+  if (iqi || angle) h += '<section class="sec" id="sec-counts"><div class="sec-h"><h2>Entries into the mouth</h2>' + tagsFor(c, ['iqi', 'angle']) + '</div><div class="ctrs">' +
+    counter(c, 'blade', 'Laryngoscope blade') + counter(c, 'bougie', 'Bougie', '0 = not used') + counter(c, 'ett', 'Endotracheal tube') + '</div></section>';
+  if (iqi) h += rsiMedsHTML(c);
+  if (angle) h += angleHTML(c);
+  if (!iqi && !angle && wave) h += '<div class="next"><button class="btn primary big" data-act="tab" data-tab="after">Go to WAVE steps</button></div>';
+  return h;
+}
+function medBlock(c, key, title, drugs){
+  var m = c.iqi[key];
+  var h = '<div class="q"><p class="qt">' + title + '</p>' + chips(c, 'iqi.' + key + '.drug', drugs);
+  if (m.drug && m.drug !== 'None') {
+    h += '<div class="vgrid">' + '<label class="txt"><span>Dose (mg)</span><input class="vin" id="' + pid('iqi.' + key + '.dose') + '" data-bind="iqi.' + key + '.dose" data-kind="dec" inputmode="decimal" autocomplete="off" placeholder="–" value="' + esc(m.dose) + '"></label></div>' +
+      '<p class="hint">Route</p>' + chips(c, 'iqi.' + key + '.route', ROUTES);
+  }
+  return h + '</div>';
+}
+function rsiMedsHTML(c){
+  var both = c.iqi.sed.drug && c.iqi.sed.drug !== 'None' && c.iqi.par.drug && c.iqi.par.drug !== 'None';
+  return '<section class="sec" id="sec-meds"><div class="sec-h"><h2>RSI medications</h2>' + tag('IQI') + '</div>' +
+    medBlock(c, 'sed', 'Sedative', SEDATIVES) + medBlock(c, 'par', 'Paralytic', PARALYTICS) +
+    (both ? q('Which drug was administered first?', '', chips(c, 'iqi.first', ['Sedative', 'Paralytic'])) : '') + '</section>';
+}
+function lowCard(c, key){
+  var o = c.low[key], na = !!o.na, isS = key === 'spo2';
+  var label = isS ? 'Lowest O₂ sat' : 'Lowest SBP';
+  return '<div class="vital k-' + (isS ? 'spo2' : 'bp') + (na ? ' is-na' : '') + '">' +
+    '<div class="vl"><b>' + label + '</b><span class="u">' + (isS ? '%' : 'mmHg') + '</span><button class="na' + (na ? ' on' : '') + '" data-act="na" data-path="low.' + key + '" aria-pressed="' + na + '" aria-label="' + label + ' not available">N/A</button></div>' +
+    '<div class="natext">N/A</div>' +
+    (na ? '' : '<div class="lowrow"><div class="lowv" data-derive="lowv-' + key + '"></div><div class="lowadd">' +
+      '<input class="vin" id="low-' + key + '" data-kind="int" data-max="' + (isS ? 100 : 300) + '" data-enter="lowAdd" data-key="' + key + '" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Reading" aria-label="' + label + ' reading" enterkeyhint="done">' +
+      '<button class="btn" data-act="lowAdd" data-key="' + key + '">Log</button></div></div>' +
+      '<div class="readings" data-derive="lowr-' + key + '"></div>') +
+    '</div>';
+}
+function angleHTML(c){
+  return '<section class="sec" id="sec-angle"><div class="sec-h"><h2>Lowest values</h2>' + tag('ANGLE') + '</div>' +
+    '<p class="hint">Between RSI meds and 2 min after the tube is placed. Log each low reading you see; the lowest is kept. The value at meds pushed counts automatically.</p>' +
+    '<div data-derive="win"></div>' + lowCard(c, 'spo2') + lowCard(c, 'sbp') +
+    q('Vasopressor bolused or dose increased prior to (or with) meds?', '', chips(c, 'angle.vasoPre', YN)) +
+    q('Vasopressor bolused or dose increased after RSI meds?', '', chips(c, 'angle.vasoPost', YN)) + '</section>';
+}
+
+/* ---------- AFTER ---------- */
+function iqiPostHTML(c){
+  var a = anchor(c), R = ivRanges(c);
+  var h = '<section class="sec" id="sec-iqi-post"><div class="sec-h"><h2>Post-intubation vitals</h2>' + tag('IQI') + '</div>';
+  if (!a) {
+    h += note(c.ev.tube == null
+      ? 'Times appear once the tube is placed and the first BVM breath after placement is logged on the During tab.'
+      : 'Tube placed. Waiting for the first BVM breath after tube placement (During tab).', 'warn');
+  } else {
+    h += '<div class="anchor"><span class="lbl">First BVM after tube<small>All times below count from this breath</small></span>' + timePair(c, a.t) + '</div>';
+  }
+  h += '<div class="sub-h">5 minutes after intubation</div>' +
+    '<div class="due">Stopwatch time (BVM + 5:00) <b>' + (R ? fmtSW(R[0].s) : '--:--') + '</b>' + (R ? '<span>at ' + fmtClock(R[0].ts) + '</span>' : '') + '</div>' +
+    '<div class="monhint"><span><i style="color:var(--hr)">HR</i> green value</span><span><i style="color:var(--spo2)">SpO₂</i> blue value</span><span><i style="color:var(--bp)">BP</i> purple values</span><span><i style="color:var(--et)">EtCO₂</i> bottom yellow value</span></div>' +
+    '<div class="vgrid">' + vitalCard(c, 'v.five.hr', 'hr') + vitalCard(c, 'v.five.spo2', 'spo2') + vitalCard(c, 'v.five.et', 'et') + vitalCard(c, 'v.five.bp', 'bp', { mode: 'full' }) + '</div>';
+  h += '<div class="sub-h">Lowest SBP and matching HR by interval</div>' +
+    '<p class="hint">Log each BP you see with the HR at the same moment. The lowest SBP per interval is picked for you; the 5-min vitals count toward interval 1. Use N/A if vitals were unavailable for the whole interval.</p>' +
+    (R ? '<button class="btn primary big" data-act="ivAdd">Add BP reading</button>' : '') +
+    '<div class="ivt" data-derive="ivtable"></div></section>';
+  return h;
+}
+function postSedHTML(c){
+  var p = c.iqi.post, s = startSec(c);
+  var h = '<section class="sec" id="sec-postsed"><div class="sec-h"><h2>First sedative after intubation</h2>' + tag('IQI') + '</div>' +
+    '<p class="hint">Record only the first sedative given after successful intubation.</p>' +
+    '<div class="chips"><button class="chip' + (p.none ? ' on' : '') + '" data-act="flag" data-path="iqi.post.none" aria-pressed="' + p.none + '">No sedative given after intubation</button></div>';
+  if (!p.none) {
+    h += p.t != null
+      ? '<button class="evt done" data-act="editEvt" data-key="post"><span class="lbl">Sedative given</span>' + timePair(c, p.t) + '<span class="ed">Edit</span></button>'
+      : '<button class="evt' + (s != null ? ' ready' : '') + '" data-act="postLog"' + (s != null ? '' : ' disabled') + '><span class="lbl">Sedative given<small>Logs the stopwatch time now</small></span><span class="go">TAP</span></button>';
+    h += q('Medication', '', chips(c, 'iqi.post.drug', POST_SED)) +
+      '<div class="vgrid">' + textIn(c, 'iqi.post.dose', 'First dose (mg)', 'dec') + textIn(c, 'iqi.post.rate', 'Initial infusion (mcg/kg/min)', 'dec') + '</div>';
+  }
+  return h + '</section>';
+}
+function whereWhy(c){
+  var w = c.wave;
+  return q('Where do you believe the original tube was located?', '', chips(c, 'wave.loc', ['In trachea', 'Not in trachea'])) +
+    q('Why do you believe the tube was located there?', 'Select all that apply.', multiChips(c, 'wave.why', WHY) + (w.why.indexOf('Other') >= 0 ? textIn(c, 'wave.whyOther', 'Other') : ''));
+}
+var STOP = '<div class="wave-stop"><span>STOP</span>Step 5 complete</div>';
+function waveHTML(c){
+  var w = c.wave;
+  var h = '<section class="sec" id="sec-wave"><div class="sec-h"><h2>CO₂ confirmation</h2>' + tag('WAVE') + '</div>' +
+    q('<span class="step">Step 2</span>Waveform capnography after 7 breaths', 'Ask clinician #1: Is the waveform consistent with a tube located in the trachea?', chips(c, 'wave.s2', YN) + (w.s2 === 'No' ? textIn(c, 'wave.s2o', 'If No, what was observed?') : '')) +
+    q('<span class="step">Step 3</span>Colorimetric detector after 7 breaths', 'Ask clinician #2: Is the color change consistent with a tube located in the trachea?', chips(c, 'wave.s3', YN) + (w.s3 === 'No' ? textIn(c, 'wave.s3o', 'If No, what was observed?') : '')) +
+    '<div class="q"><p class="qt"><span class="step">Step 4</span>After intubation</p><div class="vgrid">' +
+      vitalCard(c, 'v.waveEt', 'et', { label: 'EtCO₂', sub: 'after 7 breaths' }) +
+      vitalCard(c, 'v.waveSbp', 'bp', { mode: 'sbp', label: '1st SBP', sub: 'after procedure' }) + '</div>' +
+      '<p class="qt">Was the patient receiving CPR when CO₂ was interpreted (during Steps 2 and 3)?</p>' + chips(c, 'wave.cpr', YN) + '</div></section>';
+  h += '<section class="sec" id="sec-wave5"><div class="sec-h"><h2>Step 5 · Confirm with clinician</h2>' + tag('WAVE') + '</div><div data-derive="wave20"></div>';
+  h += q('1. Mechanical ventilation effective through original tube?', 'For 5 consecutive ventilations, measured exhaled volume ≥ 80% of delivered tidal volume.', chips(c, 'wave.q1', YN));
+  if (w.q1 === 'Yes') h += STOP;
+  if (w.q1 === 'No') {
+    h += q('2. Original tube removed within 20 min?', '', chips(c, 'wave.q2', YN));
+    if (w.q2 === 'Yes') h += whereWhy(c) + STOP;
+    if (w.q2 === 'No') {
+      h += q('3. Death or ongoing CPR at 20 min?', '', chips(c, 'wave.q3', YN));
+      if (w.q3 === 'Yes') h += whereWhy(c) + STOP;
+      if (w.q3 === 'No') { h += q('4. Patient alive AND original tube is not removed at 20 min?', '', chips(c, 'wave.q4', ['Yes'])); if (w.q4 === 'Yes') h += STOP; }
+    }
+  }
+  h += '<div class="q"><p class="qt">Information sheet given</p><div class="chips"><button class="chip' + (w.info === 'Yes' ? ' on' : '') + '" data-act="set" data-path="wave.info" data-val="Yes" aria-pressed="' + (w.info === 'Yes') + '">Yes</button></div>' + textIn(c, 'wave.initials', 'Initials') + '</div>';
+  return h + '</section>';
+}
+function afterHTML(c){
+  var h = '';
+  if (c.studies.iqi) h += iqiPostHTML(c) + postSedHTML(c);
+  if (c.studies.wave) h += waveHTML(c);
+  if (!c.studies.iqi && !c.studies.wave) h += '<section class="sec">' + note('ANGLE has no after-procedure items for interns. Lowest values are on the During tab.') + '</section>';
+  h += '<div class="next"><button class="btn big" data-act="tab" data-tab="summary">Review summary</button></div>';
+  return h;
+}
+
+/* =========================================================
+   Derived (live-updating) fragments. Never contain inputs.
+   ========================================================= */
+var DERIVE = {};
+DERIVE.status = function(c){
+  var n = nowSec(), s = startSec(c);
+  if (c.done) return '<div class="st-line done"><span class="dot"></span>Case finished</div>';
+  if (s == null) return '';
+  var L = [];
+  if (c.studies.iqi) {
+    var a = anchor(c);
+    if (!a) { if (c.ev.tube != null) L.push(['', 'IQI: waiting for first BVM after tube']); }
+    else {
+      var cur = currentIv(c, n), R = ivRanges(c);
+      if (cur === -2) L.push(['', '5-min vitals at ' + fmtSW(R[0].s) + ' · in <span data-tick="cd" data-due="' + (a.t + 300) + '"></span>']);
+      else if (cur >= 0 && cur < 5) L.push(['', 'Interval ' + (cur + 1) + ' of 5 · ' + fmtSW(R[cur].s) + '–' + fmtSW(R[cur].e) + ' · ends in <span data-tick="cd" data-due="' + (R[cur].te + 1) + '"></span>']);
+      else L.push(['done', 'IQI intervals complete']);
+    }
+  }
+  if (c.studies.angle && c.ev.tube != null && n < c.ev.tube + 120) L.push(['amber', 'ANGLE window closes in <span data-tick="cd" data-due="' + (c.ev.tube + 120) + '"></span>']);
+  if (c.studies.wave && c.ev.tube != null && n < c.ev.tube + 1200) L.push(['amber', 'WAVE 20-min mark in <span data-tick="cd" data-due="' + (c.ev.tube + 1200) + '"></span>']);
+  return L.map(function(l){ return '<div class="st-line ' + l[0] + '"><span class="dot"></span><span>' + l[1] + '</span></div>'; }).join('');
+};
+DERIVE.win = function(c){
+  var n = nowSec(), s = startSec(c);
+  if (s == null) return '<div class="win closed"><b>Window not open</b><span>Opens when the stopwatch starts.</span></div>';
+  if (c.ev.tube == null) return '<div class="win"><b>Window open</b><span>Since ' + (c.noMeds ? 'blade entry' : 'RSI meds') + ' at ' + fmtClock(s) + '. Closes 2:00 after the tube is placed.</span></div>';
+  var W = c.ev.tube + 120;
+  if (n < W) return '<div class="win"><b>Window open · <span data-tick="cd" data-due="' + W + '"></span> left</b><span>Closes at ' + fmtClock(W) + ' (SW ' + fmtSW(W - s) + ')</span></div>';
+  return '<div class="win closed"><b>Window closed</b><span>' + fmtClock(s) + ' to ' + fmtClock(W) + ' (SW ' + fmtSW(0) + ' to ' + fmtSW(W - s) + ')</span></div>';
+};
+function lowv(key){ return function(c){
+  var low = lowLowest(c, key);
+  return '<b>' + (low ? esc(low.v) : '–') + '</b><small>' + (low ? (low.src === 'rsi' ? 'at meds pushed' : 'logged at ' + fmtSW(sw(c, low.t))) : 'no readings yet') + '</small>';
+}; }
+function lowr(key){ return function(c){
+  var low = lowLowest(c, key);
+  return lowCandidates(c, key).map(function(r){
+    var isLow = low && r.src === low.src && r.i === low.i;
+    if (r.src === 'rsi') return '<span class="rd fixed' + (isLow ? ' low' : '') + '">' + esc(r.v) + '<small>meds pushed</small></span>';
+    return '<span class="rd' + (isLow ? ' low' : '') + '">' + esc(r.v) + '<small>' + fmtSW(sw(c, r.t)) + '</small><button data-act="lowDel" data-key="' + key + '" data-i="' + r.i + '" data-confirm="1" aria-label="Remove reading ' + esc(r.v) + '">×</button></span>';
+  }).join('');
+}; }
+DERIVE['lowv-spo2'] = lowv('spo2'); DERIVE['lowv-sbp'] = lowv('sbp');
+DERIVE['lowr-spo2'] = lowr('spo2'); DERIVE['lowr-sbp'] = lowr('sbp');
+DERIVE.ivtable = function(c){
+  var R = ivRanges(c), cur = currentIv(c);
+  return IV.map(function(x, k){
+    var st = !R ? 'pending' : cur === k ? 'now' : (cur === 5 || cur > k) ? 'past' : 'future';
+    var low = ivLowest(c, k), na = c.iv[k].na;
+    var val = na ? '<div class="iv-val none">N/A</div>'
+      : low ? '<div class="iv-val">' + esc(low.s) + '/' + esc(low.d || '?') + '<small>HR ' + esc(low.hr || '?') + '</small></div>'
+      : '<div class="iv-val none">–</div>';
+    var rds = ivCandidates(c, k).map(function(r){
+      var isLow = low && r.src === low.src && r.i === low.i;
+      var txt = esc(r.s) + '/' + esc(r.d || '?') + ' · ' + esc(r.hr || '?');
+      if (r.src === 'five') return '<span class="rd fixed' + (isLow ? ' low' : '') + '" style="--vc:var(--bp)">' + txt + '<small>5-min vitals</small></span>';
+      return '<span class="rd' + (isLow ? ' low' : '') + '" style="--vc:var(--bp)">' + txt + '<small>' + fmtSW(sw(c, r.t)) + '</small><button data-act="ivDel" data-k="' + k + '" data-i="' + r.i + '" data-confirm="1" aria-label="Remove reading">×</button></span>';
+    }).join('');
+    return '<div class="iv ' + st + '"><div class="iv-n">' + (k + 1) + '</div><div><div class="iv-lbl">' + x.label + ' after BVM' + (st === 'now' ? '<span class="nowtag">NOW · <span data-tick="cd" data-due="' + (R[k].te + 1) + '"></span> left</span>' : '') + '</div>' +
+      '<div class="iv-rng">' + (R ? fmtSW(R[k].s) + '–' + fmtSW(R[k].e) : 'BVM + ' + x.label) + '</div></div>' + val +
+      (R ? '<div class="iv-more">' + (rds ? '<div class="readings">' + rds + '</div>' : '') +
+        '<div class="iv-act"><button class="btn" data-act="ivAdd" data-k="' + k + '">+ Reading</button><button class="btn' + (na ? ' primary' : '') + '" data-act="ivNa" data-k="' + k + '" aria-pressed="' + na + '">N/A for interval</button></div></div>' : '') +
+      '</div>';
+  }).join('');
+};
+DERIVE.wave20 = function(c){
+  var n = nowSec(), s = startSec(c);
+  if (c.ev.tube == null) return '<div class="win closed"><b>20-min mark</b><span>Counted from tube placement. Log the tube on the During tab.</span></div>';
+  var D = c.ev.tube + 1200;
+  return n < D
+    ? '<div class="win"><b>20-min mark at ' + fmtClock(D) + ' · <span data-tick="cd" data-due="' + D + '"></span> left</b><span>SW ' + fmtSW(D - s) + ' (tube placed + 20:00)</span></div>'
+    : '<div class="win closed"><b>20-min mark passed</b><span>' + fmtClock(D) + ' (SW ' + fmtSW(D - s) + ')</span></div>';
+};
+function refreshDerived(){
+  var c = C();
+  $$('[data-derive]').forEach(function(el){
+    var k = el.getAttribute('data-derive'), fn = DERIVE[k]; if (!fn || !c) return;
+    var html = fn(c);
+    if (el._h !== html) { el.innerHTML = html; el._h = html; }
+  });
+  tickNow();
+}
+
+/* =========================================================
+   Summary
+   ========================================================= */
+function R_(k, v, o){
+  o = o || {};
+  var empty = v == null || v === '';
+  return { k: k, v: empty ? (o.opt ? '–' : 'Missing') : String(v), miss: (empty && !o.opt) || !!o.miss, ref: !!o.ref };
+}
+function sv(o, unit){ if (o.na) return 'N/A'; return o.v === '' ? null : o.v + (unit || ''); }
+function bpv(o, full){ if (o.na) return 'N/A'; if (o.s === '') return null; return full ? o.s + '/' + (o.d === '' ? '?' : o.d) : o.s; }
+function bpRow(k, o, full){ var v = bpv(o, full); return R_(k, v == null || v === 'N/A' ? v : v + ' mmHg', { miss: full && v && v.indexOf('?') >= 0 }); }
+function cntv(n){ return n == null ? null : String(n); }
+function medv(m){
+  if (!m.drug) return { v: null };
+  if (m.drug === 'None') return { v: 'None' };
+  return { v: m.drug + ' ' + (m.dose || '?') + ' mg ' + (m.route || '?'), miss: !m.dose || !m.route };
+}
+function vitRowsIQI(o){ return [R_('HR', sv(o.hr, ' bpm')), R_('EtCO₂', sv(o.et, ' mmHg')), bpRow('BP', o.bp, true), R_('SpO₂', sv(o.spo2, '%'))]; }
+function summaryGroups(c){
+  var G = [], s = startSec(c);
+  function swt(t){ return t == null || s == null ? null : fmtSW(t - s); }
+  function clk(t){ return t == null ? null : fmtClock(t); }
+  if (c.studies.iqi) {
+    var a = anchor(c), Rg = ivRanges(c);
+    var pre = bvmSorted(c).filter(function(b){ return bvmStatus(c, b) === 'pre'; });
+    var sed = medv(c.iqi.sed), par = medv(c.iqi.par);
+    var both = c.iqi.sed.drug && c.iqi.sed.drug !== 'None' && c.iqi.par.drug && c.iqi.par.drug !== 'None';
+    var p = c.iqi.post, postRows;
+    if (p.none) postRows = [R_('Sedative after intubation', 'None given')];
+    else postRows = [R_('Stopwatch time', swt(p.t)), R_('Medication', p.drug), R_('First dose', p.dose ? p.dose + ' mg' : null, { opt: !!p.rate }), R_('Initial infusion rate', p.rate ? p.rate + ' mcg/kg/min' : null, { opt: true })];
+    G.push({ title: 'IQI', parts: [
+      { title: 'Screening and inclusion', rows: [R_('Intubated for suspected intoxication', c.iqi.intox), R_('Airway management in stabilization room', c.iqi.incl)] },
+      { title: 'RASS', rows: [R_('At stabilization room arrival', c.iqi.rassA), R_('Right before RSI', c.iqi.rassB)] },
+      { title: 'Record ID', rows: [R_('Record ID', c.recordId)] },
+      { title: 'Baseline vitals', rows: vitRowsIQI(c.v.base) },
+      { title: 'RSI vitals (as meds pushed)', rows: vitRowsIQI(c.v.rsi) },
+      { title: 'Stopwatch', rows: [
+        R_('0:00', s == null ? null : (c.noMeds ? 'No RSI meds; blade entry at ' + fmtClock(s) : 'First RSI med pushed at ' + fmtClock(s))),
+        R_('Blade enters mouth', swt(c.ev.bladeIn)),
+        R_('Blade removed from mouth', swt(c.ev.bladeOut)),
+        R_('First BVM breath (after tube)', a ? swt(a.t) : null)
+      ].concat(pre.length ? [R_('BVM between attempts (not on form)', pre.map(function(b){ return swt(b.t); }).join(', '), { ref: true })] : [])
+       .concat([R_('Tube placed (not on form)', swt(c.ev.tube), { opt: true, ref: true })]) },
+      { title: 'Counts', rows: [R_('Laryngoscope blade entered mouth', cntv(c.counts.blade)), R_('Bougie entered mouth (0 = not used)', cntv(c.counts.bougie)), R_('Endotracheal tube entered mouth', cntv(c.counts.ett))] },
+      { title: 'RSI medications', rows: [R_('Sedative', sed.v, { miss: sed.miss }), R_('Paralytic', par.v, { miss: par.miss })].concat(both ? [R_('Administered first', c.iqi.first)] : []) },
+      { title: '5 min after intubation', rows: [R_('Stopwatch time (BVM + 5:00)', Rg ? fmtSW(Rg[0].s) : null), R_('HR', sv(c.v.five.hr, ' bpm')), R_('SpO₂', sv(c.v.five.spo2, '%')), bpRow('BP', c.v.five.bp, true), R_('EtCO₂', sv(c.v.five.et, ' mmHg'))] },
+      { title: 'Lowest SBP + HR by interval', rows: IV.map(function(x, k){
+        var low = ivLowest(c, k), na = c.iv[k].na;
+        var v = na ? 'N/A' : low ? low.s + '/' + (low.d || '?') + ' · HR ' + (low.hr || '?') : null;
+        return R_(x.label + (Rg ? '  (SW ' + fmtSW(Rg[k].s) + '–' + fmtSW(Rg[k].e) + ')' : ''), v, { miss: !na && low && (!low.d || !low.hr) });
+      }) },
+      { title: 'First sedative after intubation', rows: postRows }
+    ] });
+  }
+  if (c.studies.angle) {
+    G.push({ title: 'ANGLE', parts: [{ title: 'Recorded during procedure', rows: [
+      R_('1. TIME first RSI med pushed', s == null ? null : (c.noMeds ? 'No RSI meds' : fmtClock(c.start))),
+      R_('O₂ sat as meds pushed', sv(c.v.rsi.spo2, '%')),
+      bpRow('SBP as meds pushed', c.v.rsi.bp, false),
+      R_('Vasopressor prior to (or with) meds', c.angle.vasoPre),
+      R_('2. TIME blade first entered mouth', clk(c.ev.bladeIn)),
+      R_('3. TIME tube placed in airway', clk(c.ev.tube)),
+      R_('Number of blade entries', cntv(c.counts.blade)),
+      R_('Number of bougie entries (0 = not used)', cntv(c.counts.bougie)),
+      R_('Number of ETT entries', cntv(c.counts.ett)),
+      R_('4. Lowest O₂ sat (RSI meds to tube + 2 min)', c.low.spo2.na ? 'N/A' : (lowLowest(c, 'spo2') ? lowLowest(c, 'spo2').v + '%' : null)),
+      R_('Lowest SBP', c.low.sbp.na ? 'N/A' : (lowLowest(c, 'sbp') ? lowLowest(c, 'sbp').v + ' mmHg' : null)),
+      R_('Vasopressor after RSI meds', c.angle.vasoPost)
+    ] }] });
+  }
+  if (c.studies.wave) {
+    var w = c.wave, s5 = [R_('1. Ventilation effective through original tube', w.q1)];
+    var ww = function(){ return [R_('Believed tube location', w.loc), R_('Why (all that apply)', w.why.length ? w.why.map(function(x){ return x === 'Other' ? 'Other: ' + (w.whyOther || '?') : x; }).join('; ') : null, { miss: w.why.indexOf('Other') >= 0 && !w.whyOther })]; };
+    if (w.q1 === 'No') {
+      s5.push(R_('2. Original tube removed within 20 min', w.q2));
+      if (w.q2 === 'Yes') s5 = s5.concat(ww());
+      if (w.q2 === 'No') {
+        s5.push(R_('3. Death or ongoing CPR at 20 min', w.q3));
+        if (w.q3 === 'Yes') s5 = s5.concat(ww());
+        if (w.q3 === 'No') s5.push(R_('4. Alive AND original tube not removed at 20 min', w.q4));
+      }
+    }
+    G.push({ title: 'WAVE', parts: [
+      { title: 'Step 1 · Vitals as meds pushed', rows: [R_('O₂ sat', sv(c.v.rsi.spo2, '%')), bpRow('SBP', c.v.rsi.bp, false), R_('HR', sv(c.v.rsi.hr, ' bpm')), R_('End-tidal CO₂', sv(c.v.rsi.et, ' mmHg'))] },
+      { title: 'Step 2 · Waveform capnography', rows: [R_('Consistent with tube in trachea (clinician #1)', w.s2)].concat(w.s2 === 'No' ? [R_('Observed', w.s2o)] : []) },
+      { title: 'Step 3 · Colorimetric detector', rows: [R_('Consistent with tube in trachea (clinician #2)', w.s3)].concat(w.s3 === 'No' ? [R_('Observed', w.s3o)] : []) },
+      { title: 'Step 4 · After intubation', rows: [R_('EtCO₂ after 7 breaths', sv(c.v.waveEt, ' mmHg')), R_('CPR when CO₂ interpreted', w.cpr), bpRow('1st SBP after procedure', c.v.waveSbp, false)] },
+      { title: 'Step 5 · Confirm with clinician', rows: s5 },
+      { title: 'Side of form', rows: [R_('Information sheet given', w.info, { opt: true }), R_('Initials', w.initials, { opt: true })] }
+    ] });
+  }
+  return G;
+}
+function warnings(c){
+  var W = [], s = startSec(c), ev = c.ev;
+  function lbl(k){ return EVL[k]; }
+  if (s == null) W.push('The stopwatch has not been started.');
+  if (s != null) ['bladeIn', 'tube', 'bladeOut'].forEach(function(k){ if (ev[k] != null && ev[k] < s) W.push(lbl(k) + ' is earlier than the stopwatch start.'); });
+  if (ev.bladeIn != null && ev.tube != null && ev.tube < ev.bladeIn) W.push('Tube placed is earlier than blade first entered mouth. Check both times.');
+  if (ev.bladeIn != null && ev.bladeOut != null && ev.bladeOut < ev.bladeIn) W.push('Blade removed is earlier than blade entered. Check both times.');
+  if (ev.bladeIn != null && !c.counts.blade) W.push('Blade entered the mouth, but the blade count is ' + (c.counts.blade == null ? 'blank' : '0') + '.');
+  if (ev.tube != null && !c.counts.ett) W.push('Tube was placed, but the ETT count is ' + (c.counts.ett == null ? 'blank' : '0') + '.');
+  if (c.studies.iqi) {
+    var a = anchor(c);
+    if (c.iqi.incl === 'No') W.push('IQI inclusion is No. Data should not be collected.');
+    if (ev.tube != null && !a) W.push('No BVM breath after tube placement is logged, so the 5-min and interval times are not set.');
+    if (a && ev.tube == null) W.push('A BVM through the tube is logged, but there is no tube placement time.');
+    if (a && ev.tube != null && a.t < ev.tube) W.push('The BVM marked as through the tube (' + fmtSW(sw(c, a.t)) + ') is earlier than tube placed (' + fmtSW(sw(c, ev.tube)) + '). Check the tube time.');
+    if (c.iqi.post.t != null && ev.tube != null && c.iqi.post.t < ev.tube) W.push('The post-intubation sedative time is earlier than tube placement.');
+  }
+  var bps = [['Baseline BP', c.v.base.bp], ['RSI BP', c.v.rsi.bp], ['5-min BP', c.v.five.bp]];
+  bps.forEach(function(b){ var o = b[1]; if (!o.na && o.s !== '' && o.d !== '' && +o.d >= +o.s) W.push(b[0] + ': diastolic is not lower than systolic.'); });
+  var outs = [];
+  [['base', 'Baseline'], ['rsi', 'RSI'], ['five', '5-min']].forEach(function(p){
+    var o = c.v[p[0]];
+    if (!o.spo2.na && +o.spo2.v > 100) outs.push(p[1] + ' SpO₂ ' + o.spo2.v);
+    if (!o.hr.na && +o.hr.v > RANGE.hr) outs.push(p[1] + ' HR ' + o.hr.v);
+    if (!o.bp.na && +o.bp.s > RANGE.s) outs.push(p[1] + ' SBP ' + o.bp.s);
+  });
+  if (outs.length) W.push('Out of range: ' + outs.join(', ') + '.');
+  return W;
+}
+function summaryHTML(c){
+  var W = warnings(c), G = summaryGroups(c), s = startSec(c);
+  var h = '<section class="sec"><div class="sec-h"><h2>Summary</h2></div>' +
+    '<div class="sum-meta"><span>Date <b>' + fmtDate(c.created) + '</b></span>' + (s != null ? '<span>0:00 at <b>' + fmtClock(s) + '</b></span>' : '') + '</div>' +
+    textIn(c, 'recordId', 'Record ID (no names or MRNs)') +
+    (W.length ? '<div class="warns"><b>Check before transcribing</b><ul>' + W.map(function(x){ return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>' : '') +
+    '<button class="btn primary big" data-act="copy">Copy summary</button></section>';
+  G.forEach(function(g){
+    h += '<section class="sum"><h3>' + g.title + '</h3>' + g.parts.map(function(p){
+      return '<div class="grp">' + esc(p.title) + '</div>' + p.rows.map(function(r){
+        return '<div class="row' + (r.miss ? ' miss' : '') + (r.ref ? ' ref' : '') + '"><span class="k">' + esc(r.k) + '</span><span class="v">' + esc(r.v) + '</span></div>';
+      }).join('');
+    }).join('') + '</section>';
+  });
+  h += '<div class="sum-end">' + (c.done
+    ? '<button class="btn big" data-act="reopen">Reopen case</button>'
+    : '<button class="btn danger big" data-act="finish" data-confirm="1">Finish case</button><p class="hint">Finishing stops alerts. You can reopen it from the case list.</p>') + '</div>';
+  return h;
+}
+function summaryText(c){
+  var s = startSec(c), L = [];
+  L.push('AIRWAY STUDY SUMMARY');
+  L.push('Date ' + fmtDate(c.created) + (c.recordId ? ' | Record ID ' + c.recordId : '') + (s != null ? ' | 0:00 at ' + fmtClock(s) : ''));
+  var W = warnings(c);
+  if (W.length) { L.push(''); L.push('CHECK:'); W.forEach(function(w){ L.push('* ' + w); }); }
+  summaryGroups(c).forEach(function(g){
+    L.push(''); L.push('===== ' + g.title + ' =====');
+    g.parts.forEach(function(p){ L.push('-- ' + p.title + ' --'); p.rows.forEach(function(r){ L.push(r.k + ': ' + (r.v === '–' ? '-' : r.v)); }); });
+  });
+  return L.join('\n').replace(/–/g, '-').replace(/₂/g, '2').replace(/·/g, '|').replace(/≥/g, '>=');
+}
+
+/* =========================================================
+   Sheets
+   ========================================================= */
+var SHEETS = {};
+SHEETS.edit = function(c){
+  var key = UI.sheet.key, t = getT(c, key), s = startSec(c);
+  if (t == null) return null;
+  var st = isStartKey(c, key), clr = canClear(c, key);
+  return '<h3>' + esc(keyLabel(c, key)) + '</h3>' +
+    '<div class="edtimes"><div><span>Stopwatch</span><b>' + (s == null ? '--:--' : fmtSW(t - s)) + '</b></div><div><span>Clock</span><b>' + fmtClock(t) + '</b></div></div>' +
+    (st ? '<p class="hint">Moving the start keeps every other step at its clock time, so their stopwatch times shift.</p>' : '') +
+    '<div class="nudges">' + [-10, -5, -1, 1, 5, 10].map(function(d){ return '<button class="nudge" data-act="nudge" data-d="' + d + '">' + (d > 0 ? '+' : '−') + Math.abs(d) + 's</button>'; }).join('') + '</div>' +
+    '<div class="edin">' +
+      (st ? '' : '<label class="txt"><span>Type a stopwatch time (m:ss)</span><div class="row2"><input id="ed-sw" data-kind="time" data-enter="setSW" inputmode="numeric" autocomplete="off" placeholder="' + fmtSW(t - s) + '"><button class="btn" data-act="setSW">Set</button></div></label>') +
+      '<label class="txt"><span>Or a clock time (24 h, hh:mm:ss)</span><div class="row2"><input id="ed-clock" data-kind="time" data-enter="setClock" inputmode="numeric" autocomplete="off" placeholder="' + fmtClock(t) + '"><button class="btn" data-act="setClock">Set</button></div></label>' +
+    '</div>' +
+    '<div class="sheet-actions"><button class="btn danger" data-act="clearT" data-confirm="1"' + (clr ? '' : ' disabled') + '>' + (key.indexOf('bvm:') === 0 ? 'Delete this BVM' : 'Clear time') + '</button><button class="btn primary" data-act="closeSheet">Done</button></div>' +
+    (!clr ? '<p class="hint">The start can be cleared only before any other step is recorded.</p>' : '');
+};
+SHEETS.bvmAsk = function(c){
+  var t = UI.sheet.t;
+  return '<h3>Tube not marked yet</h3><p>BVM breath at <b class="mono">' + fmtSW(sw(c, t)) + '</b> (' + fmtClock(t) + '). Was this breath:</p>' +
+    '<button class="opt" data-act="bvmPost"><b>Through the tube</b><small>The tube was already in. This becomes the post-intubation start point. Then tap Tube placed and fix its time.</small></button>' +
+    '<button class="opt" data-act="bvmPre"><b>Between attempts</b><small>No tube yet. Post-intubation timing waits for the first BVM after the tube is placed.</small></button>' +
+    '<button class="btn ghost" data-act="closeSheet">Cancel (don’t log)</button>';
+};
+SHEETS.bvm = function(c){
+  var a = anchor(c);
+  var rows = bvmSorted(c).map(function(b){
+    var stt = bvmStatus(c, b), isA = a && a.i === b.i;
+    return '<div class="bvmi"><div class="top">' + timePair(c, b.t) + '<span class="pill' + (isA ? ' anc' : '') + '">' + (isA ? 'Post-intubation start' : stt === 'post' ? 'After tube' : 'Between attempts') + '</span></div>' +
+      '<div class="acts"><button class="btn" data-act="editEvt" data-key="bvm:' + b.i + '">Edit time</button>' +
+      '<button class="btn" data-act="bvmToggle" data-i="' + b.i + '">Mark ' + (stt === 'post' ? 'between attempts' : 'after tube') + '</button>' +
+      '<button class="btn danger" data-act="bvmDel" data-i="' + b.i + '" data-confirm="1">Delete</button></div></div>';
+  }).join('');
+  return '<h3>BVM breaths</h3><p class="hint">IQI post-intubation timing uses the first BVM after the tube was placed.</p>' +
+    '<div class="bvml">' + (rows || '<p class="hint">None logged.</p>') + '</div>' +
+    '<div class="sheet-actions"><button class="btn" data-act="bvm">Log a BVM now</button><button class="btn primary" data-act="closeSheet">Done</button></div>';
+};
+SHEETS.iv = function(c){
+  var R = ivRanges(c); if (!R) return null; var k = UI.sheet.k;
+  return '<h3>Add BP reading</h3><p class="hint">Saved to the interval you pick. The lowest SBP in each interval is chosen automatically, with the HR you enter here.</p>' +
+    '<div class="ivpick" role="group" aria-label="Interval">' + R.map(function(r, i){ return '<button class="chip' + (i === k ? ' on' : '') + '" data-act="ivPick" data-k="' + i + '" aria-pressed="' + (i === k) + '">' + (i + 1) + '<small>' + fmtSW(r.s) + '–' + fmtSW(r.e) + '</small></button>'; }).join('') + '</div>' +
+    '<div class="vgrid">' +
+      '<div class="vital k-bp bpfull"><div class="vl"><b>BP</b><span class="u">mmHg</span></div><div class="bp"><input class="vin" id="sh-s" data-kind="int" data-max="300" inputmode="numeric" pattern="[0-9]*" placeholder="SBP" aria-label="Systolic"><span class="slash">/</span><input class="vin" id="sh-d" data-kind="int" data-max="250" inputmode="numeric" pattern="[0-9]*" placeholder="DBP" aria-label="Diastolic"></div></div>' +
+      '<div class="vital k-hr"><div class="vl"><b>HR</b><span class="u">bpm</span></div><input class="vin" id="sh-hr" data-kind="int" data-max="300" data-enter="ivSave" inputmode="numeric" pattern="[0-9]*" placeholder="HR" aria-label="Heart rate"></div>' +
+    '</div>' +
+    '<div class="sheet-actions"><button class="btn ghost" data-act="closeSheet">Cancel</button><button class="btn primary" data-act="ivSave">Save reading</button></div>';
+};
+SHEETS.copy = function(){
+  return '<h3>Copy summary</h3><p class="hint">Automatic copy was blocked here. Select the text below and copy it.</p><textarea class="copytxt" id="copytxt" readonly>' + esc(UI.sheet.text) + '</textarea>' +
+    '<div class="sheet-actions"><button class="btn" data-act="selectCopy">Select all</button><button class="btn primary" data-act="closeSheet">Done</button></div>';
+};
+function renderSheet(){
+  var wrap = $('#sheetwrap'), sh = $('#sheet'), c = C();
+  var html = UI.sheet && SHEETS[UI.sheet.type] ? SHEETS[UI.sheet.type](c) : null;
+  if (!html) { UI.sheet = null; wrap.hidden = true; sh.innerHTML = ''; document.body.classList.remove('noscroll'); return; }
+  var first = sh.innerHTML === '' || sh._type !== UI.sheet.type;
+  sh.innerHTML = html; sh._type = UI.sheet.type; wrap.hidden = false; document.body.classList.add('noscroll');
+  if (first) sh.scrollTop = 0;
+}
+function closeSheet(){ UI.sheet = null; renderSheet(); }
+
+function renderAlertBar(){
+  var b = $('#abar'), a = UI.alert;
+  if (!a) { b.hidden = true; b.innerHTML = ''; document.body.classList.remove('has-abar'); return; }
+  b.hidden = false;
+  b.className = 'abar' + (a.kind === 'iqi' ? '' : ' amber') + (b.classList.contains('pulse') ? ' pulse' : '');
+  b.innerHTML = '<div class="abar-in"><div class="abar-txt"><b>' + esc(a.title) + '</b><span>' + esc(a.msg) + '</span></div>' +
+    '<div class="abar-btns">' + (a.go ? '<button class="fill" data-act="alertGo">Open</button>' : '') + '<button data-act="alertX">Dismiss</button></div></div>';
+  document.body.classList.add('has-abar');
+}
+
+/* =========================================================
+   Toast
+   ========================================================= */
+var toastT = null;
+function toast(msg){ var t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(function(){ t.classList.remove('show'); }, 2200); }
+
+/* =========================================================
+   Time parsing for the edit sheet
+   ========================================================= */
+function parseSW(str){
+  str = (str || '').trim(); if (!str) return null;
+  var p;
+  if (str.indexOf(':') >= 0) {
+    p = str.split(':').map(function(x){ return x === '' ? 0 : parseInt(x, 10); });
+    if (p.some(isNaN)) return null;
+    if (p.length === 2) { if (p[1] > 59) return null; return p[0] * 60 + p[1]; }
+    if (p.length === 3) { if (p[1] > 59 || p[2] > 59) return null; return p[0] * 3600 + p[1] * 60 + p[2]; }
+    return null;
+  }
+  if (!/^\d+$/.test(str)) return null;
+  if (str.length <= 2) return parseInt(str, 10) > 59 ? null : parseInt(str, 10);
+  var sec = parseInt(str.slice(-2), 10), min = parseInt(str.slice(0, -2), 10);
+  if (sec > 59) return null;
+  return min * 60 + sec;
+}
+function parseClock(str, base){
+  str = (str || '').trim(); if (!str) return null;
+  var h, m, s;
+  if (str.indexOf(':') >= 0) {
+    var p = str.split(':').map(function(x){ return parseInt(x, 10); });
+    if (p.length < 2 || p.length > 3 || p.some(isNaN)) return null;
+    h = p[0]; m = p[1]; s = p.length === 3 ? p[2] : 0;
+  } else {
+    if (!/^\d+$/.test(str)) return null;
+    if (str.length === 6) { h = +str.slice(0, 2); m = +str.slice(2, 4); s = +str.slice(4, 6); }
+    else if (str.length === 4) { h = +str.slice(0, 2); m = +str.slice(2, 4); s = 0; }
+    else return null;
+  }
+  if (h > 23 || m > 59 || s > 59) return null;
+  var d = new Date(base * 1000); d.setHours(h, m, s, 0);
+  var t = Math.floor(d.getTime() / 1000);
+  if (t - base > 43200) t -= 86400; else if (base - t > 43200) t += 86400;
+  return t;
+}
+
+/* =========================================================
+   Actions
+   ========================================================= */
+function commit(msg){ save(true); render(); if (msg) toast(msg); }
+var ACT = {
+  /* navigation */
+  home: function(){ UI.view = 'home'; UI.sheet = null; UI.newSt = null; render(); window.scrollTo(0, 0); },
+  tab: function(el){ UI.tab = el.dataset.tab; render(); window.scrollTo(0, 0); },
+  open: function(el){
+    S.activeId = el.dataset.id; var c = C(); if (!c) return;
+    UI.view = 'case'; UI.alert = null; UI.rassOpen = {};
+    UI.tab = startSec(c) != null ? 'during' : (c.studies.iqi ? 'before' : 'during');
+    commit(); window.scrollTo(0, 0); syncWake();
+  },
+  preset: function(el){ var v = el.dataset.val; UI.newSt = v === 'iqi' ? { iqi: true, angle: false, wave: false } : v === 'aw' ? { iqi: false, angle: true, wave: true } : { iqi: true, angle: true, wave: true }; render(); },
+  stToggle: function(el){ var k = el.dataset.k; UI.newSt[k] = !UI.newSt[k]; render(); },
+  create: function(){
+    var ns = UI.newSt; if (!ns.iqi && !ns.angle && !ns.wave) { toast('Pick at least one study'); return; }
+    var c = newCase(ns); S.cases[c.id] = c; S.activeId = c.id; S.settings.last = clone(ns);
+    UI.view = 'case'; UI.tab = ns.iqi ? 'before' : 'during'; UI.alert = null; UI.rassOpen = {};
+    commit(); window.scrollTo(0, 0);
+  },
+  delCase: function(el){ var id = el.dataset.id; delete S.cases[id]; if (S.activeId === id) { S.activeId = null; UI.alert = null; } commit('Case deleted'); syncWake(); },
+  sound: function(el){ S.settings.sound = el.dataset.val === 'On'; unlockAudio(); commit(); },
+  theme: function(el){ S.settings.theme = el.dataset.val; applyTheme(); commit(); },
+  testAlert: function(){ unlockAudio(); setTimeout(function(){ fireAlert({ id: 'test', kind: 'iqi', title: 'Test alert', msg: 'This is how an IQI interval alert looks and sounds.' }); }, 60); },
+
+  /* stopwatch */
+  startMeds: function(){ var c = C(); if (startSec(c) != null) return; c.start = nowSec(); c.noMeds = false; commit('Stopwatch started'); syncWake(); },
+  noMeds: function(){
+    var c = C(); c.noMeds = true; c.start = null;
+    if (c.studies.iqi && !c.iqi.sed.drug && !c.iqi.par.drug) { c.iqi.sed.drug = 'None'; c.iqi.par.drug = 'None'; c.prefillNone = true; }
+    commit();
+  },
+  undoNoMeds: function(){
+    var c = C(); if (c.ev.bladeIn != null) return;
+    c.noMeds = false;
+    if (c.prefillNone) { if (c.iqi.sed.drug === 'None') c.iqi.sed.drug = ''; if (c.iqi.par.drug === 'None') c.iqi.par.drug = ''; c.prefillNone = false; }
+    commit();
+  },
+  evt: function(el){
+    var c = C(), k = el.dataset.key;
+    if (c.ev[k] != null) { UI.sheet = { type: 'edit', key: k }; renderSheet(); return; }
+    if (startSec(c) == null && !(c.noMeds && k === 'bladeIn')) return;
+    var t = nowSec(); c.ev[k] = t;
+    if (k === 'bladeIn' && !c.counts.blade) c.counts.blade = 1;
+    if (k === 'tube' && !c.counts.ett) c.counts.ett = 1;
+    commit(EVL[k] + ' · ' + fmtSW(t - startSec(c)));
+    syncWake();
+  },
+  editEvt: function(el){ UI.sheet = { type: 'edit', key: el.dataset.key }; renderSheet(); },
+  nudge: function(el){
+    var c = C(), key = UI.sheet.key, t = getT(c, key); if (t == null) return;
+    setT(c, key, t + (+el.dataset.d)); commit();
+  },
+  setSW: function(){
+    var c = C(), key = UI.sheet.key, s = startSec(c), v = parseSW($('#ed-sw').value);
+    if (v == null || s == null) { toast('Use m:ss, like 1:42'); return; }
+    setT(c, key, s + v); commit('Set to ' + fmtSW(v));
+  },
+  setClock: function(){
+    var c = C(), key = UI.sheet.key, base = getT(c, key);
+    var t = parseClock($('#ed-clock').value, base == null ? nowSec() : base);
+    if (t == null) { toast('Use hh:mm:ss, like 14:03:27'); return; }
+    setT(c, key, t); commit('Set to ' + fmtClock(t));
+  },
+  clearT: function(){
+    var c = C(), key = UI.sheet.key; if (!canClear(c, key)) return;
+    setT(c, key, null); UI.sheet = null;
+    if (key === 'start' || (c.noMeds && key === 'bladeIn')) c.alerts = {};
+    commit('Cleared'); syncWake();
+  },
+  closeSheet: function(){ closeSheet(); },
+
+  /* BVM */
+  bvm: function(){
+    var c = C(); if (startSec(c) == null) return;
+    var t = nowSec(), had = !!anchor(c);
+    if (c.ev.tube != null && t >= c.ev.tube) { c.bvm.push({ t: t }); UI.sheet = null; commit((had ? 'BVM logged · ' : 'First BVM after tube · ') + fmtSW(sw(c, t))); }
+    else { UI.sheet = { type: 'bvmAsk', t: t }; renderSheet(); }
+  },
+  bvmPost: function(){ var c = C(), t = UI.sheet && UI.sheet.t; if (t == null) return; c.bvm.push({ t: t, mode: 'post' }); UI.sheet = null; commit('BVM through the tube logged. Now log the tube time.'); },
+  bvmPre: function(){ var c = C(), t = UI.sheet && UI.sheet.t; if (t == null) return; c.bvm.push({ t: t, mode: 'pre' }); UI.sheet = null; commit('BVM between attempts logged'); },
+  bvmSheet: function(){ UI.sheet = { type: 'bvm' }; renderSheet(); },
+  bvmToggle: function(el){ var c = C(), b = c.bvm[+el.dataset.i]; if (!b) return; b.mode = bvmStatus(c, b) === 'post' ? 'pre' : 'post'; commit(); },
+  bvmDel: function(el){ var c = C(); c.bvm.splice(+el.dataset.i, 1); commit('BVM deleted'); },
+
+  /* counts + fields */
+  cnt: function(el){ var c = C(), k = el.dataset.k, d = +el.dataset.d, v = c.counts[k]; c.counts[k] = v == null ? (d > 0 ? 1 : 0) : Math.max(0, v + d); commit(); },
+  set: function(el){ var c = C(), p = el.dataset.path, v = el.dataset.val; setp(c, p, get(c, p) === v ? '' : v); commit(); },
+  rassSet: function(el){ var c = C(), p = el.dataset.path, v = el.dataset.val; setp(c, p, get(c, p) === v ? '' : v); UI.rassOpen[p] = false; commit(); },
+  rassOpen: function(el){ UI.rassOpen[el.dataset.path] = true; render(); },
+  toggleArr: function(el){ var c = C(), arr = get(c, el.dataset.path), v = el.dataset.val, i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); commit(); },
+  flag: function(el){ var c = C(), p = el.dataset.path; setp(c, p, !get(c, p)); commit(); },
+  na: function(el){ var c = C(), o = get(c, el.dataset.path); o.na = !o.na; commit(); },
+
+  /* ANGLE lows */
+  lowAdd: function(el){
+    var c = C(), key = el.dataset.key, inp = $('#low-' + key); if (!inp) return;
+    var v = inp.value.replace(/[^0-9]/g, ''); if (!v) { inp.focus(); return; }
+    c.low[key].r.push({ v: v, t: nowSec() }); inp.value = ''; inp.classList.remove('bad');
+    save(true); refreshDerived(); toast('Logged ' + v + (key === 'spo2' ? '%' : ' mmHg')); inp.focus();
+  },
+  lowDel: function(el){ var c = C(); c.low[el.dataset.key].r.splice(+el.dataset.i, 1); save(true); refreshDerived(); },
+
+  /* IQI intervals */
+  ivAdd: function(el){
+    var c = C(); if (!ivRanges(c)) return;
+    var k = el.dataset.k != null ? +el.dataset.k : currentIv(c);
+    if (k < 0) k = 0; if (k > 4) k = 4;
+    UI.sheet = { type: 'iv', k: k }; renderSheet();
+    setTimeout(function(){ var i = $('#sh-s'); if (i) i.focus(); }, 50);
+  },
+  ivPick: function(el){ UI.sheet.k = +el.dataset.k; $$('.ivpick .chip').forEach(function(b){ var on = +b.dataset.k === UI.sheet.k; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); },
+  ivSave: function(){
+    var c = C(), k = UI.sheet.k;
+    var sb = $('#sh-s').value.replace(/[^0-9]/g, ''), db = $('#sh-d').value.replace(/[^0-9]/g, ''), hr = $('#sh-hr').value.replace(/[^0-9]/g, '');
+    if (!sb) { toast('Enter the systolic BP'); $('#sh-s').focus(); return; }
+    c.iv[k].r.push({ s: sb, d: db, hr: hr, t: nowSec() }); c.iv[k].na = false; UI.sheet = null;
+    commit('Saved to interval ' + (k + 1));
+  },
+  ivDel: function(el){ var c = C(); c.iv[+el.dataset.k].r.splice(+el.dataset.i, 1); save(true); refreshDerived(); },
+  ivNa: function(el){ var c = C(), o = c.iv[+el.dataset.k]; o.na = !o.na; save(true); refreshDerived(); },
+
+  /* post-intubation sedative */
+  postLog: function(){ var c = C(); if (startSec(c) == null) return; var t = nowSec(); c.iqi.post.t = t; c.iqi.post.none = false; commit('Sedative logged · ' + fmtSW(sw(c, t))); },
+
+  /* alerts */
+  alertGo: function(){
+    var a = UI.alert; UI.alert = null; if (!a || !a.go) { renderAlertBar(); return; }
+    UI.view = 'case'; UI.tab = a.go.tab; render();
+    var el = document.getElementById(a.go.id); if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+  alertX: function(){ UI.alert = null; renderAlertBar(); },
+
+  /* summary */
+  copy: function(){
+    var c = C(), text = summaryText(c);
+    var fallback = function(){ UI.sheet = { type: 'copy', text: text }; renderSheet(); var ta = $('#copytxt'); if (ta) { ta.focus(); ta.select(); } };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ toast('Summary copied'); }, fallback);
+      else fallback();
+    } catch (e) { fallback(); }
+  },
+  selectCopy: function(){ var ta = $('#copytxt'); if (ta) { ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length); } },
+  finish: function(){ var c = C(); c.done = true; c.doneAt = nowSec(); UI.alert = null; UI.view = 'home'; commit('Case finished'); syncWake(); window.scrollTo(0, 0); },
+  reopen: function(){ var c = C(); c.done = false; c.doneAt = null; commit('Case reopened'); syncWake(); }
+};
+
+/* =========================================================
+   Events
+   ========================================================= */
+document.addEventListener('pointerdown', unlockAudio, { passive: true });
+document.addEventListener('click', function(e){
+  var el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
+  var fn = ACT[el.dataset.act]; if (!fn) return;
+  e.preventDefault();
+  if (el.dataset.confirm && !el.classList.contains('arm')) {
+    $$('.arm').forEach(function(x){ if (x !== el) disarm(x); });
+    el.classList.add('arm'); el._orig = el.innerHTML; el.innerHTML = 'Tap again';
+    clearTimeout(el._t); el._t = setTimeout(function(){ disarm(el); }, 3000);
+    return;
+  }
+  if (el.dataset.confirm) { clearTimeout(el._t); }
+  fn(el, e);
+});
+function disarm(el){ if (!el.classList.contains('arm')) return; el.classList.remove('arm'); if (el._orig != null) el.innerHTML = el._orig; clearTimeout(el._t); }
+document.addEventListener('input', function(e){
+  var el = e.target, kind = el.dataset && el.dataset.kind; if (!kind) return;
+  var v = el.value, nv = v;
+  if (kind === 'int') nv = v.replace(/[^0-9]/g, '').slice(0, 3);
+  else if (kind === 'dec') { nv = v.replace(/[^0-9.]/g, ''); var i = nv.indexOf('.'); if (i >= 0) nv = nv.slice(0, i + 1) + nv.slice(i + 1).replace(/\./g, ''); nv = nv.slice(0, 7); }
+  else if (kind === 'time') nv = v.replace(/[^0-9:]/g, '').slice(0, 8);
+  if (nv !== v) el.value = nv;
+  if (el.dataset.max) el.classList.toggle('bad', nv !== '' && +nv > +el.dataset.max);
+  var c = C();
+  if (el.dataset.bind && c) { setp(c, el.dataset.bind, nv); save(); refreshDerived(); }
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Enter' && e.target.dataset && e.target.dataset.enter) { e.preventDefault(); var fn = ACT[e.target.dataset.enter]; if (fn) fn(e.target, e); }
+  if (e.key === 'Escape' && UI.sheet) closeSheet();
+});
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState === 'hidden') write();
+  else { syncWake(); tick(true); }
+});
+window.addEventListener('pagehide', write);
+
+/* =========================================================
+   Tick
+   ========================================================= */
+var lastSec = -1, lastSig = '';
+function tickNow(){
+  var n = nowSec(), c = C();
+  $$('[data-tick]').forEach(function(el){
+    var k = el.dataset.tick, txt = '';
+    if (k === 'elapsed') { var s = c && startSec(c); txt = s != null ? fmtSW(((c.done && c.doneAt) ? c.doneAt : n) - s) : '00:00'; }
+    else if (k === 'now') txt = fmtClock(n);
+    else if (k === 'cd') txt = fmtDur(+el.dataset.due - n);
+    else if (k === 'since') txt = fmtSW(n - (+el.dataset.from));
+    if (el.textContent !== txt) el.textContent = txt;
+  });
+}
+function phaseSig(c, n){
+  var t = c.ev.tube;
+  return [currentIv(c, n), t == null ? 'x' : n < t + 120, t == null ? 'x' : n < t + 1200, startSec(c) != null, c.done].join('|');
+}
+function tick(force){
+  var n = nowSec(); if (n === lastSec && !force) return; lastSec = n;
+  tickNow();
+  var c = C();
+  if (c) { var sig = phaseSig(c, n); if (sig !== lastSig || force) { lastSig = sig; refreshDerived(); } checkAlerts(); }
+}
+
+/* =========================================================
+   Theme + boot
+   ========================================================= */
+var hostTheme = document.documentElement.getAttribute('data-theme'), themeSet = false;
+function applyTheme(){
+  var t = S.settings.theme, root = document.documentElement;
+  if (t === 'dark' || t === 'light') {
+    if (!themeSet) hostTheme = root.getAttribute('data-theme');
+    root.setAttribute('data-theme', t); themeSet = true;
+  } else if (themeSet) {
+    if (hostTheme) root.setAttribute('data-theme', hostTheme); else root.removeAttribute('data-theme');
+    themeSet = false;
+  }
+}
+load();
+applyTheme();
+(function(){ var c = C(); if (c && !c.done && startSec(c) != null) { UI.view = 'case'; UI.tab = 'during'; } })();
+render();
+syncWake();
+setInterval(tick, 250);
+tick(true);
+window.__airway = { S: S, UI: UI, anchor: anchor, ivRanges: ivRanges, currentIv: currentIv, summaryText: summaryText, warnings: warnings, parseSW: parseSW, parseClock: parseClock, render: render, tick: tick };
+})();
+</script>
+</body>
+</html>
