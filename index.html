@@ -24,8 +24,8 @@
   --alert:#FF4B4B; --alert-soft:rgba(255,75,75,.18); --on-alert:#FFFFFF;
   --warn:#F5A623; --warn-soft:rgba(245,166,35,.15); --on-warn:#1A1204;
   --ok:#4ADE80; --scrim:rgba(3,6,10,.62);
-  --sed:#F2C94C; --sed-ink:#1C1503; --sed-line:#F2C94C;
-  --par:#E5484D; --par-ink:#FFFFFF; --par-line:#F0686C;
+  --sed:#FB923C; --sed-ink:#2A1203; --sed-line:#FB923C;
+  --par:#F472B6; --par-ink:#2A0718; --par-line:#F472B6;
   --font-ui:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --font-cond:"Barlow Semi Condensed","Barlow",system-ui,-apple-system,sans-serif;
   --font-mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -40,8 +40,8 @@
     --alert:#D92020; --alert-soft:rgba(217,32,32,.10); --on-alert:#FFFFFF;
     --warn:#B45309; --warn-soft:rgba(180,83,9,.10); --on-warn:#FFFFFF;
     --ok:#13803B; --scrim:rgba(13,20,28,.45);
-    --sed:#F5C518; --sed-ink:#1C1503; --sed-line:#9A7400;
-    --par:#D92D32; --par-ink:#FFFFFF; --par-line:#C8262C;
+    --sed:#F7883A; --sed-ink:#2A1203; --sed-line:#B4530A;
+    --par:#F06BAE; --par-ink:#2A0718; --par-line:#C21D6E;
     color-scheme:light;
   }
 }
@@ -52,8 +52,8 @@
   --alert:#D92020; --alert-soft:rgba(217,32,32,.10); --on-alert:#FFFFFF;
   --warn:#B45309; --warn-soft:rgba(180,83,9,.10); --on-warn:#FFFFFF;
   --ok:#13803B; --scrim:rgba(13,20,28,.45);
-  --sed:#F5C518; --sed-ink:#1C1503; --sed-line:#9A7400;
-  --par:#D92D32; --par-ink:#FFFFFF; --par-line:#C8262C;
+  --sed:#F7883A; --sed-ink:#2A1203; --sed-line:#B4530A;
+  --par:#F06BAE; --par-ink:#2A0718; --par-line:#C21D6E;
   color-scheme:light;
 }
 
@@ -183,8 +183,6 @@ body.has-abar .wrap{padding-bottom:230px}
 .evt.start.drug-par{background:var(--par);border-color:var(--par);color:var(--par-ink)}
 .evt.start.drug-sed .lbl small,.evt.start.drug-sed .go{color:var(--sed-ink)}
 .evt.start.drug-par .lbl small,.evt.start.drug-par .go{color:var(--par-ink)}
-.evt.ready.drug-sed{border-color:var(--sed-line)} .evt.ready.drug-sed .go{color:var(--sed-line)}
-.evt.ready.drug-par{border-color:var(--par-line)} .evt.ready.drug-par .go{color:var(--par-line)}
 .dchip{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px;vertical-align:1px}
 .dchip.sed{background:var(--sed)} .dchip.par{background:var(--par)}
 .tp{flex:none;text-align:right;font-family:var(--font-mono);font-variant-numeric:tabular-nums;line-height:1.1}
@@ -448,7 +446,7 @@ function vset(){ return { hr: { v: '', na: false }, spo2: { v: '', na: false }, 
 function blankCase(){
   return {
     id: '', created: 0, studies: { iqi: false, angle: false, wave: false }, done: false, doneAt: null,
-    noMeds: false, prefillNone: false, start: null, push2: null, firstAuto: false,
+    noMeds: false, prefillNone: false, start: null, firstAuto: false,
     ev: { bladeIn: null, tube: null, bladeOut: null },
     bvm: [],
     counts: { blade: null, bougie: null, ett: null },
@@ -554,14 +552,12 @@ function lowLowest(c, key){
 }
 function getT(c, key){
   if (key === 'start') return startSec(c);
-  if (key === 'push2') return c.push2;
   if (key === 'post') return c.iqi.post.t;
   if (key.indexOf('bvm:') === 0) { var b = c.bvm[+key.slice(4)]; return b ? b.t : null; }
   return c.ev[key];
 }
 function setT(c, key, t){
   if (key === 'start') { if (c.noMeds) c.ev.bladeIn = t; else c.start = t; return; }
-  if (key === 'push2') { c.push2 = t; return; }
   if (key === 'post') { c.iqi.post.t = t; return; }
   if (key.indexOf('bvm:') === 0) { var i = +key.slice(4); if (t == null) c.bvm.splice(i, 1); else if (c.bvm[i]) c.bvm[i].t = t; return; }
   c.ev[key] = t;
@@ -569,16 +565,14 @@ function setT(c, key, t){
 function isStartKey(c, key){ return key === 'start' || (c.noMeds && key === 'bladeIn'); }
 function canClear(c, key){
   if (!isStartKey(c, key)) return true;
-  return c.ev.tube == null && c.ev.bladeOut == null && (c.noMeds || c.ev.bladeIn == null) && !c.bvm.length && c.iqi.post.t == null && c.push2 == null;
+  return c.ev.tube == null && c.ev.bladeOut == null && (c.noMeds || c.ev.bladeIn == null) && !c.bvm.length && c.iqi.post.t == null;
 }
 /* Two-button start (IQI): which drug went first, and the other one */
 function firstDrug(c){ return c.studies.iqi && !c.noMeds && (c.iqi.first === 'Sedative' || c.iqi.first === 'Paralytic') ? c.iqi.first : null; }
-function otherDrug(c){ var f = firstDrug(c); return f ? (f === 'Sedative' ? 'Paralytic' : 'Sedative') : null; }
 function drugKey(name){ return name === 'Sedative' ? 'sed' : 'par'; }
 function keyLabel(c, key){
   if (key.indexOf('bvm:') === 0) return 'BVM breath';
   if (key === 'start' && firstDrug(c)) return firstDrug(c) + ' pushed (stopwatch start)';
-  if (key === 'push2') return (otherDrug(c) || 'Second RSI med') + ' pushed';
   if (key === 'bladeIn' && c.noMeds) return 'Blade first entered mouth (stopwatch start)';
   return EVL[key];
 }
@@ -833,7 +827,6 @@ function beforeHTML(c){
 }
 
 /* ---------- DURING ---------- */
-function medSub(c, key){ var m = c.iqi[key]; return m.drug && m.drug !== 'None' ? ' · ' + esc(m.drug) + (m.dose ? ' ' + esc(m.dose) + ' mg' : '') : ''; }
 function startDrugBtn(c, name){
   var k = drugKey(name), m = c.iqi[k];
   var sub = m.drug && m.drug !== 'None' ? esc(m.drug) + (m.dose ? ' ' + esc(m.dose) + ' mg' : '') : 'Starts the stopwatch';
@@ -865,7 +858,7 @@ function eventsHTML(c){
       var showSed = !(c.iqi.sed.drug === 'None' && c.iqi.par.drug !== 'None');
       var showPar = !(c.iqi.par.drug === 'None' && c.iqi.sed.drug !== 'None');
       h += '<div class="startpair' + (showSed && showPar ? '' : ' one') + '">' + (showSed ? startDrugBtn(c, 'Sedative') : '') + (showPar ? startDrugBtn(c, 'Paralytic') : '') + '</div>' +
-        '<p class="hint">Tap whichever drug is pushed first (plunger all the way down). It starts the stopwatch and fills in which drug was administered first.</p>';
+        '<p class="hint">Tap whichever drug is pushed first (plunger all the way down). It starts the stopwatch and data collection, and fills in which drug was administered first.</p>';
     } else {
       h += '<button class="evt start" data-act="startMeds"><span class="lbl">RSI meds pushed<small>Starts the stopwatch. Tap when the first RSI med is in (plunger all the way down).</small></span><span class="go">START</span></button>';
     }
@@ -877,13 +870,6 @@ function eventsHTML(c){
     h += '<button class="evt done" data-act="editEvt" data-key="' + (c.noMeds ? 'bladeIn' : 'start') + '"><span class="lbl">' +
       (c.noMeds ? 'Blade first entered mouth' : fd ? '<span class="dchip ' + drugKey(fd) + '"></span>' + fd + ' pushed' : 'RSI meds pushed') +
       '<small>' + (c.noMeds ? 'Stopwatch start · no RSI meds' : fd ? 'Stopwatch start · first RSI med' : 'Stopwatch start') + '</small></span>' + timePair(c, s) + '<span class="ed">Edit</span></button>';
-    var od = otherDrug(c);
-    if (od && c.iqi[drugKey(od)].drug !== 'None') {
-      var ok = drugKey(od);
-      h += c.push2 != null
-        ? '<button class="evt done" data-act="editEvt" data-key="push2"><span class="lbl"><span class="dchip ' + ok + '"></span>' + od + ' pushed<small>Second RSI med</small></span>' + timePair(c, c.push2) + '<span class="ed">Edit</span></button>'
-        : '<button class="evt ready drug-' + ok + '" data-act="push2"><span class="lbl">' + od + ' pushed<small>Second RSI med' + medSub(c, ok) + '</small></span><span class="go">TAP</span></button>';
-    }
   }
   if (!(c.noMeds && s != null)) h += evtRow(c, 'bladeIn');
   h += evtRow(c, 'tube');
@@ -1153,8 +1139,7 @@ function summaryGroups(c){
         R_('Blade enters mouth', swt(c.ev.bladeIn)),
         R_('Blade removed from mouth', swt(c.ev.bladeOut)),
         R_('First BVM breath (after tube)', a ? swt(a.t) : null)
-      ].concat(c.push2 != null && otherDrug(c) ? [R_(otherDrug(c) + ' pushed (not on form)', swt(c.push2), { ref: true })] : [])
-       .concat(pre.length ? [R_('BVM between attempts (not on form)', pre.map(function(b){ return swt(b.t); }).join(', '), { ref: true })] : [])
+      ].concat(pre.length ? [R_('BVM between attempts (not on form)', pre.map(function(b){ return swt(b.t); }).join(', '), { ref: true })] : [])
        .concat([R_('Tube placed (not on form)', swt(c.ev.tube), { opt: true, ref: true })]) },
       { title: 'Counts', rows: [R_('Laryngoscope blade entered mouth', cntv(c.counts.blade)), R_('Bougie entered mouth (0 = not used)', cntv(c.counts.bougie)), R_('Endotracheal tube entered mouth', cntv(c.counts.ett))] },
       { title: 'RSI medications', rows: [R_('Sedative', sed.v, { miss: sed.miss }), R_('Paralytic', par.v, { miss: par.miss })].concat(both ? [R_('Administered first', c.iqi.first)] : []) },
@@ -1223,7 +1208,6 @@ function warnings(c){
     if (a && ev.tube != null && a.t < ev.tube) W.push('The BVM marked as through the tube (' + fmtSW(sw(c, a.t)) + ') is earlier than tube placed (' + fmtSW(sw(c, ev.tube)) + '). Check the tube time.');
     if (c.iqi.post.t != null && ev.tube != null && c.iqi.post.t < ev.tube) W.push('The post-intubation sedative time is earlier than tube placement.');
   }
-  if (c.push2 != null && s != null && c.push2 < s) W.push('The second RSI med time is earlier than the stopwatch start.');
   var bps = [['Baseline BP', c.v.base.bp], ['RSI BP', c.v.rsi.bp], ['5-min BP', c.v.five.bp]];
   bps.forEach(function(b){ var o = b[1]; if (!o.na && o.s !== '' && o.d !== '' && +o.d >= +o.s) W.push(b[0] + ': diastolic is not lower than systolic.'); });
   var outs = [];
@@ -1417,10 +1401,6 @@ var ACT = {
     var c = C(); if (startSec(c) != null) return;
     c.start = nowSec(); c.noMeds = false; c.iqi.first = el.dataset.val; c.firstAuto = true;
     commit(el.dataset.val + ' pushed · stopwatch started'); syncWake();
-  },
-  push2: function(){
-    var c = C(), od = otherDrug(c); if (startSec(c) == null || !od) return;
-    var t = nowSec(); c.push2 = t; commit(od + ' pushed · ' + fmtSW(t - startSec(c)));
   },
   startMeds: function(){ var c = C(); if (startSec(c) != null) return; c.start = nowSec(); c.noMeds = false; commit('Stopwatch started'); syncWake(); },
   noMeds: function(){
