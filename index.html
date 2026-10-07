@@ -421,7 +421,7 @@ window.addEventListener('error', function(e){ var el = document.getElementById('
 /* =========================================================
    Basics
    ========================================================= */
-var APP_VERSION = '2026.10.07-10';
+var APP_VERSION = '2026.10.07-11';
 var KEY = 'airwayStudyTimer.v1';
 var $ = function(s, r){ return (r || document).querySelector(s); };
 var $$ = function(s, r){ return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -657,16 +657,22 @@ function unlockAudio(){
 function beep(kind){
   if (!S.settings.sound || !actx) return;
   try {
-    var t0 = actx.currentTime + 0.02, f = kind === 'iqi' ? 880 : 660;
-    for (var i = 0; i < 3; i++) {
-      var o = actx.createOscillator(), g = actx.createGain(), st = t0 + i * 0.36;
-      o.type = 'square'; o.frequency.value = f;
-      g.gain.setValueAtTime(0.0001, st);
-      g.gain.exponentialRampToValueAtTime(0.25, st + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, st + 0.24);
-      o.connect(g); g.connect(actx.destination); o.start(st); o.stop(st + 0.26);
-    }
+    /* Marimba: two warm mallet notes going up (C5 then G5). ANGLE/WAVE alerts play it a fourth lower. */
+    var t0 = actx.currentTime + 0.02, k = kind === 'iqi' ? 1 : 0.75;
+    [523.25, 783.99].forEach(function(f, i){
+      var st = t0 + i * 0.16;
+      mallet(f * k, st, 0.24, 0.5);           // body of the note
+      mallet(f * k * 4, st, 0.048, 0.075);    // short wooden click on the strike
+    });
   } catch (e) {}
+}
+function mallet(f, st, peak, decay){
+  var o = actx.createOscillator(), g = actx.createGain();
+  o.type = 'sine'; o.frequency.value = f;
+  g.gain.setValueAtTime(0.0001, st);
+  g.gain.linearRampToValueAtTime(peak, st + 0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001, st + 0.004 + decay);
+  o.connect(g); g.connect(actx.destination); o.start(st); o.stop(st + 0.004 + decay + 0.05);
 }
 function flash(kind){
   var f = $('#flash'); f.className = ''; void f.offsetWidth;
@@ -814,7 +820,7 @@ function homeHTML(){
     '<div class="setrow"><span>Theme</span><div class="chips">' + [['auto', 'Auto'], ['dark', 'Dark'], ['light', 'Light']].map(function(p){ var on = S.settings.theme === p[0]; return '<button class="chip' + (on ? ' on' : '') + '" data-act="theme" data-val="' + p[0] + '" aria-pressed="' + on + '">' + p[1] + '</button>'; }).join('') + '</div></div>' +
     '<button class="btn" data-act="testAlert">Test alert (flash, sound, vibration)</button>' +
     '<div class="setrow"><span>Version <span class="mono">' + APP_VERSION + '</span></span><button class="btn" data-act="checkUpdate">Check for updates</button></div>' +
-    '<p class="hint">Alerts flash red and beep when each IQI interval starts. Phones pause web pages when locked, so keep this page open and the screen on during a case. Sound follows the ringer switch on iPhone. Vibration works on Android only.</p>' +
+    '<p class="hint">Alerts flash red and play a soft marimba tone when each IQI interval starts. Phones pause web pages when locked, so keep this page open and the screen on during a case. Sound follows the ringer switch on iPhone. Vibration works on Android only.</p>' +
     '</div></section>';
   h += '<p class="foot">Cases are saved only in this browser on this phone. Do not enter names or MRNs. Clearing browser data deletes saved cases.</p>';
   return h + '</main>';
