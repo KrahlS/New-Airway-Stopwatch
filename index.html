@@ -1017,6 +1017,8 @@ function iqiPostHTML(c){
     '<div class="ivt" data-derive="ivtable"></div></section>';
   return h;
 }
+/* Midazolam and ketamine: first dose in mg. Propofol: infusion rate in mcg/kg/min. */
+function postSedKind(drug){ return drug === 'Propofol' ? 'rate' : (drug === 'Midazolam (Versed)' || drug === 'Ketamine') ? 'dose' : null; }
 function postSedHTML(c){
   var p = c.iqi.post, s = startSec(c);
   var h = '<section class="sec" id="sec-postsed"><div class="sec-h"><h2>First sedative after intubation</h2>' + tag('IQI') + '</div>' +
@@ -1026,9 +1028,10 @@ function postSedHTML(c){
     h += p.t != null
       ? '<button class="evt done" data-act="editEvt" data-key="post"><span class="lbl">Sedative given</span>' + timePair(c, p.t) + '<span class="ed">Edit</span></button>'
       : '<button class="evt' + (s != null ? ' ready' : '') + '" data-act="postLog"' + (s != null ? '' : ' disabled') + '><span class="lbl">Sedative given<small>Logs the stopwatch time now</small></span><span class="go">TAP</span></button>';
-    h += q('Medication', '', chips(c, 'iqi.post.drug', POST_SED)) +
-      '<div class="vgrid">' + '<div class="txt"><span>First dose (mg)</span>' + kpField({ id: pid('iqi.post.dose'), kind: 'dec', label: 'First dose', unit: 'mg', path: 'iqi.post.dose', val: p.dose }) + '</div>' +
-      '<div class="txt"><span>Initial infusion (mcg/kg/min)</span>' + kpField({ id: pid('iqi.post.rate'), kind: 'dec', label: 'Initial infusion rate', unit: 'mcg/kg/min', path: 'iqi.post.rate', val: p.rate }) + '</div>' + '</div>';
+    var pk = postSedKind(p.drug);
+    h += q('Medication', pk === 'rate' ? 'Propofol is an infusion, so record the initial rate.' : pk === 'dose' ? 'Record the first dose in mg.' : '', chips(c, 'iqi.post.drug', POST_SED));
+    if (pk === 'dose') h += '<div class="vgrid"><div class="txt"><span>First dose (mg)</span>' + kpField({ id: pid('iqi.post.dose'), kind: 'dec', label: p.drug + ' first dose', unit: 'mg', path: 'iqi.post.dose', val: p.dose }) + '</div></div>';
+    if (pk === 'rate') h += '<div class="vgrid"><div class="txt"><span>Initial infusion rate (mcg/kg/min)</span>' + kpField({ id: pid('iqi.post.rate'), kind: 'dec', label: 'Propofol initial infusion rate', unit: 'mcg/kg/min', path: 'iqi.post.rate', val: p.rate }) + '</div></div>';
   }
   return h + '</section>';
 }
@@ -1187,7 +1190,12 @@ function summaryGroups(c){
     var both = c.iqi.sed.drug && c.iqi.sed.drug !== 'None' && c.iqi.par.drug && c.iqi.par.drug !== 'None';
     var p = c.iqi.post, postRows;
     if (p.none) postRows = [R_('Sedative after intubation', 'None given')];
-    else postRows = [R_('Stopwatch time', swt(p.t)), R_('Medication', p.drug), R_('First dose', p.dose ? p.dose + ' mg' : null, { opt: !!p.rate }), R_('Initial infusion rate', p.rate ? p.rate + ' mcg/kg/min' : null, { opt: true })];
+    else {
+      var pk = postSedKind(p.drug);
+      postRows = [R_('Stopwatch time', swt(p.t)), R_('Medication', p.drug)];
+      if (pk === 'dose') postRows.push(R_('First dose', p.dose ? p.dose + ' mg' : null));
+      if (pk === 'rate') postRows.push(R_('Initial infusion rate', p.rate ? p.rate + ' mcg/kg/min' : null));
+    }
     G.push({ title: 'IQI', parts: [
       { title: 'Screening and inclusion', rows: [R_('Intubated for suspected intoxication', c.iqi.intox), R_('Airway management in stabilization room', c.iqi.incl)] },
       { title: 'RASS', rows: [R_('At stabilization room arrival', c.iqi.rassA), R_('Right before RSI', c.iqi.rassB)] },
@@ -1448,7 +1456,7 @@ function kpNa(){
   var el = kpEl(), ids = el ? kpScopeFields(el).map(function(x){ return x.id; }) : [];
   var after = ids.slice(ids.indexOf(k.id) + 1);
   var o = get(c, k.na); if (o) o.na = true;
-  UI.kp = null; commit();
+  kpClose(); commit();
   for (var i = 0; i < after.length; i++) { var n = document.getElementById(after[i]); if (n && !n.disabled && !n.dataset.low) { kpOpen(n); return; } }
 }
 function kpDone(){
@@ -1457,9 +1465,9 @@ function kpDone(){
   if (k.done === 'lowAdd') { lowAddValue(k.low, buf); return; }
   if (k.done && ACT[k.done]) ACT[k.done]();
 }
-function kpClose(){ if (!UI.kp) return; UI.kp = null; renderKp(); kpMark(); }
+function kpClose(){ UI.kp = null; renderKp(); kpMark(); }
 function kpMark(){ $$('.kpf.editing').forEach(function(x){ x.classList.remove('editing'); }); var el = kpEl(); if (el) el.classList.add('editing'); }
-function kpSync(){ if (!UI.kp) return; var el = kpEl(); if (!el || el.disabled) { kpClose(); return; } UI.kp.inSheet = !!el.closest('#sheet'); kpMark(); renderKp(); }
+function kpSync(){ if (!UI.kp) { if (!$('#kp').hidden) renderKp(); return; } var el = kpEl(); if (!el || el.disabled) { kpClose(); return; } UI.kp.inSheet = !!el.closest('#sheet'); kpMark(); renderKp(); }
 function kpReveal(){
   var el = kpEl(); if (!el) return;
   if (UI.kp.inSheet) { el.scrollIntoView({ block: 'nearest' }); return; }
