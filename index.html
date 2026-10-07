@@ -308,6 +308,7 @@ body.has-abar .wrap{padding-bottom:230px}
 .edin{display:flex;flex-direction:column;gap:10px}
 .row2{display:flex;gap:8px}
 .row2 input{flex:1;min-width:0;min-height:48px;padding:8px 12px;border-radius:10px;border:1.5px solid var(--line);background:var(--raised);font:600 20px var(--font-mono)}
+.row2 .vin{flex:1;font-size:20px;min-height:48px;color:var(--fg)}
 .sheet-actions{display:flex;gap:10px;flex-wrap:wrap}
 .sheet-actions .btn{flex:1}
 .opt{display:flex;flex-direction:column;gap:4px;text-align:left;padding:14px;border-radius:var(--r-sm);border:2px solid var(--line);background:var(--raised)}
@@ -341,6 +342,38 @@ textarea.copytxt{width:100%;min-height:50vh;border-radius:10px;border:1.5px soli
 @keyframes flash{0%,100%{opacity:0}35%,65%{opacity:1}}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;max-width:calc(100% - 32px);padding:10px 16px;border-radius:12px;background:var(--fg);color:var(--bg);font-weight:600;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
+.kpf{display:flex;align-items:center;text-align:left;cursor:pointer;overflow:hidden;white-space:nowrap}
+.kpf .ph{color:var(--muted);opacity:.6;font-weight:500}
+.kpf.editing{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.kpf.editing::after{content:"";flex:none;width:2px;height:1em;margin-left:3px;background:var(--accent);animation:caret 1s steps(1) infinite}
+@keyframes caret{50%{opacity:0}}
+.bp .kpf{justify-content:center}
+.lowbtn{color:var(--vc)}
+.lowbtn .ph{font:600 15px var(--font-ui);opacity:.85;color:var(--accent)}
+.txt .kpf{min-height:50px;font-size:22px;color:var(--fg)}
+.kp{position:fixed;left:0;right:0;bottom:0;z-index:80;background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -10px 30px rgba(0,0,0,.35);padding:10px 12px calc(10px + env(safe-area-inset-bottom,0px))}
+.kp-in{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:8px}
+.kp-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;height:46px}
+.kp-lbl{display:flex;flex-direction:column;min-width:0}
+.kp-lbl b{font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kp-ctx{font:700 11.5px var(--font-cond);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kp-ctx.bad{color:var(--alert);text-transform:none;letter-spacing:0;font:600 13px var(--font-ui)}
+.kp-val{flex:none;font:700 30px/1 var(--font-mono);font-variant-numeric:tabular-nums}
+.kp-val small{font:500 13px var(--font-ui);color:var(--muted);margin-left:5px}
+.kp-val .ph{color:var(--muted);opacity:.6}
+.kp-val.bad{color:var(--alert)}
+.kp-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:7px}
+.kp-grid button{min-height:50px;border-radius:11px;background:var(--raised);border:1px solid var(--line);font:700 23px var(--font-mono);display:flex;align-items:center;justify-content:center}
+.kp-grid button:active{background:var(--accent-soft)}
+.kp-grid .fn{font:600 15px var(--font-ui)}
+.kp-grid .zero{grid-column:span 2}
+.kp-grid .done{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font:700 17px var(--font-ui)}
+.kp-grid button:disabled{opacity:.35}
+body.kp-open .wrap{padding-bottom:calc(var(--kp-h,330px) + 48px)}
+body.kp-open .sheetwrap{padding-bottom:var(--kp-h,330px)}
+body.kp-open .toast{bottom:auto;top:calc(12px + env(safe-area-inset-top,0px))}
+body.kp-open .abar{bottom:var(--kp-h,330px)}
+@media (prefers-reduced-motion: reduce){ .kpf.editing::after{animation:none} }
 body.has-abar .toast{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 body.noscroll .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top,0px))}
 .vgrid>.txt{justify-content:flex-end}
@@ -373,6 +406,7 @@ body.noscroll .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top,0px))}
   <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Details"></div>
 </div>
 <div class="abar" id="abar" role="alert" hidden></div>
+<div class="kp" id="kp" role="group" aria-label="Number pad" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
 window.addEventListener('error', function(e){ var el = document.getElementById('booterr'); if (el) { el.hidden = false; el.textContent = 'The app hit an error while starting: ' + (e && e.message ? e.message : 'unknown error'); } });
@@ -409,7 +443,7 @@ function clone(o){ return JSON.parse(JSON.stringify(o)); }
 var YN = ['Yes', 'No'];
 var STUDIES = [
   { k: 'iqi',   name: 'IQI',   desc: 'Screening, RASS, baseline and RSI vitals, stopwatch steps, RSI meds, 5-min vitals, interval lows, post-intubation sedative' },
-  { k: 'angle', name: 'ANGLE', desc: 'Live section only: clock times, entry counts, vitals at meds pushed, lowest SpO₂ and SBP to 2 min after tube, vasopressor' },
+  { k: 'angle', name: 'ANGLE', desc: 'Randomization arm, clock times, entry counts, vitals at meds pushed, lowest SpO₂ and SBP to 2 min after tube, vasopressor' },
   { k: 'wave',  name: 'WAVE',  desc: 'Step 1 vitals, CO₂ confirmation after 7 breaths, Step 4 values, 20-minute outcomes' }
 ];
 var RASS = [
@@ -454,7 +488,7 @@ function blankCase(){
     low: { spo2: { r: [], na: false }, sbp: { r: [], na: false } },
     iv: [0, 1, 2, 3, 4].map(function(){ return { r: [], na: false }; }),
     iqi: { intox: '', incl: '', rassA: '', rassB: '', sed: { drug: '', dose: '', route: '' }, par: { drug: '', dose: '', route: '' }, first: '', post: { none: false, t: null, drug: '', dose: '', rate: '' } },
-    angle: { vasoPre: '', vasoPost: '' },
+    angle: { arm: '', vasoPre: '', vasoPost: '' }, bougieAuto: false,
     wave: { info: '', initials: '', s2: '', s2o: '', s3: '', s3o: '', cpr: '', q1: '', q2: '', q3: '', q4: '', loc: '', why: [], whyOther: '' },
     alerts: {}
   };
@@ -690,8 +724,18 @@ function textIn(c, path, label, kind){
   return '<label class="txt"><span>' + label + '</span><input id="' + pid(path) + '" data-bind="' + path + '" data-kind="' + (kind || 'text') + '"' +
     (kind === 'dec' ? ' inputmode="decimal"' : '') + ' autocomplete="off" maxlength="60" value="' + esc(get(c, path)) + '"></label>';
 }
-function numIn(path, val, dis, aria, max){
-  return '<input class="vin' + (val !== '' && +val > max ? ' bad' : '') + '" id="' + pid(path) + '" data-bind="' + path + '" data-kind="int" data-max="' + max + '" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="–" value="' + esc(val) + '"' + (dis ? ' disabled' : '') + ' aria-label="' + esc(aria) + '">';
+function kpField(o){
+  var v = o.val == null ? '' : String(o.val), ph = o.ph || '–';
+  var a = ' data-act="kp" data-kind="' + o.kind + '"' + (o.max ? ' data-max="' + o.max + '"' : '') +
+    ' data-label="' + esc(o.label) + '"' + (o.unit ? ' data-unit="' + esc(o.unit) + '"' : '') +
+    (o.path ? ' data-path="' + o.path + '"' : '') + (o.low ? ' data-low="' + o.low + '"' : '') + (o.sh ? ' data-sh="' + o.sh + '"' : '') +
+    (o.na ? ' data-na="' + o.na + '"' : '') + (o.done ? ' data-kpdone="' + o.done + '"' : '') + ' data-ph="' + esc(ph) + '"';
+  var bad = o.kind === 'int' && o.max && v !== '' && +v > o.max;
+  return '<button type="button" class="vin kpf' + (o.cls ? ' ' + o.cls : '') + (bad ? ' bad' : '') + (UI.kp && UI.kp.id === o.id ? ' editing' : '') + '" id="' + o.id + '"' + a + (o.dis ? ' disabled' : '') + ' aria-label="' + esc(o.label) + '">' +
+    (v === '' ? '<span class="ph">' + esc(ph) + '</span>' : esc(v)) + '</button>';
+}
+function numIn(path, val, dis, aria, max, unit){
+  return kpField({ id: pid(path), kind: 'int', max: max, label: aria, unit: unit, path: path, na: path.replace(/\.(v|s|d)$/, ''), val: val, dis: dis });
 }
 var VMETA = { hr: ['HR', 'bpm'], spo2: ['SpO₂', '%'], et: ['EtCO₂', 'mmHg'], bp: ['BP', 'mmHg'] };
 /* kind: hr|spo2|et|bp ; mode for bp: 'full' (S/D) or 'sbp' */
@@ -702,9 +746,9 @@ function vitalCard(c, path, kind, opt){
   var inputs;
   if (kind === 'bp') {
     inputs = opt.mode === 'sbp'
-      ? numIn(path + '.s', o.s, na, label, RANGE.s)
-      : '<div class="bp">' + numIn(path + '.s', o.s, na, label + ' systolic', RANGE.s) + '<span class="slash">/</span>' + numIn(path + '.d', o.d, na, label + ' diastolic', RANGE.d) + '</div>';
-  } else inputs = numIn(path + '.v', o.v, na, label, RANGE[kind]);
+      ? numIn(path + '.s', o.s, na, label, RANGE.s, 'mmHg')
+      : '<div class="bp">' + numIn(path + '.s', o.s, na, label + ' systolic', RANGE.s, 'mmHg') + '<span class="slash">/</span>' + numIn(path + '.d', o.d, na, label + ' diastolic', RANGE.d, 'mmHg') + '</div>';
+  } else inputs = numIn(path + '.v', o.v, na, label, RANGE[kind], meta[1]);
   return '<div class="vital k-' + kind + (kind === 'bp' && opt.mode !== 'sbp' ? ' bpfull' : '') + (na ? ' is-na' : '') + '">' +
     '<div class="vl"><b>' + label + '</b><span class="u">' + meta[1] + '</span>' +
     '<button class="na' + (na ? ' on' : '') + '" data-act="na" data-path="' + path + '" aria-pressed="' + na + '" aria-label="' + esc(label + ': ' + (opt.naLabel || 'not available')) + '">N/A</button></div>' +
@@ -778,7 +822,7 @@ function caseRow(c){
 }
 
 /* ---------- case shell ---------- */
-function tabsFor(c){ var t = []; if (c.studies.iqi) t.push(['before', 'Before']); t.push(['during', 'During'], ['after', 'After'], ['summary', 'Summary']); return t; }
+function tabsFor(c){ var t = []; if (c.studies.iqi || c.studies.angle) t.push(['before', 'Before']); t.push(['during', 'During'], ['after', 'After'], ['summary', 'Summary']); return t; }
 function caseHTML(c){
   var tabs = tabsFor(c);
   if (!tabs.some(function(t){ return t[0] === UI.tab; })) UI.tab = tabs[0][0];
@@ -809,7 +853,22 @@ function rassBlock(c, path, title, hint){
   }
   return q(title, hint, body);
 }
+function angleArmHTML(c){
+  var a = c.angle.arm;
+  return '<section class="sec" id="sec-arm"><div class="sec-h"><h2>Randomization</h2>' + tag('ANGLE') + '</div>' +
+    q('Which laryngoscope was the patient randomized to?', '', '<div class="chips" role="group">' + ['Standard geometry', 'Hyperangulated'].map(function(o){
+      var on = a === o; return '<button class="chip' + (on ? ' on' : '') + '" data-act="arm" data-val="' + o + '" aria-pressed="' + on + '">' + o + '</button>';
+    }).join('') + '</div>') +
+    (a === 'Hyperangulated' ? note(c.counts.bougie === 0 ? 'Bougie entries set to 0 (rigid stylet with hyperangulated). You can still change the count on the During tab.' : 'Hyperangulated, but the bougie count is ' + c.counts.bougie + '. Check it on the During tab.', c.counts.bougie === 0 ? '' : 'warn') : '') +
+    '</section>';
+}
 function beforeHTML(c){
+  var h = c.studies.angle ? angleArmHTML(c) : '';
+  if (c.studies.iqi) h += iqiBeforeHTML(c);
+  h += '<div class="next"><button class="btn primary big" data-act="tab" data-tab="during">Go to stopwatch</button></div>';
+  return h;
+}
+function iqiBeforeHTML(c){
   var h = '<section class="sec" id="sec-screen"><div class="sec-h"><h2>Screening</h2>' + tag('IQI') + '</div>' +
     q('Was the patient intubated for <u>suspected</u> intoxication?', 'Ask the intubating provider. Alcohol alone, drugs alone, or drugs and alcohol.', chips(c, 'iqi.intox', YN)) +
     (c.iqi.intox === 'Yes' ? note('HICCUP includes patients undergoing oral intubation for suspected intoxication who are 18 or older and NOT in alcohol withdrawal. If all of that applies, the intubating provider should fill out the HICCUP form.', 'warn') : '') +
@@ -822,7 +881,6 @@ function beforeHTML(c){
   h += '<section class="sec" id="sec-base"><div class="sec-h"><h2>Baseline vitals</h2>' + tag('IQI') + '</div>' +
     '<p class="hint">After the decision to intubate, before starting the stopwatch. Tap N/A if not available before intubation.</p>' +
     '<div class="vgrid">' + vitalCard(c, 'v.base.hr', 'hr') + vitalCard(c, 'v.base.spo2', 'spo2') + vitalCard(c, 'v.base.et', 'et') + vitalCard(c, 'v.base.bp', 'bp', { mode: 'full' }) + '</div></section>';
-  h += '<div class="next"><button class="btn primary big" data-act="tab" data-tab="during">Go to stopwatch</button></div>';
   return h;
 }
 
@@ -897,7 +955,7 @@ function duringHTML(c){
     '<div class="vgrid">' + cards + '</div></section>';
   if (angle) h += angleHTML(c);
   if (iqi || angle) h += '<section class="sec" id="sec-counts"><div class="sec-h"><h2>Entries into the mouth</h2>' + tagsFor(c, ['iqi', 'angle']) + '</div><div class="ctrs">' +
-    counter(c, 'blade', 'Laryngoscope blade') + counter(c, 'bougie', 'Bougie', '0 = not used') + counter(c, 'ett', 'Endotracheal tube') + '</div></section>';
+    counter(c, 'blade', 'Laryngoscope blade') + counter(c, 'bougie', 'Bougie', angle && c.angle.arm === 'Hyperangulated' ? '0 = not used · hyperangulated arm' : '0 = not used') + counter(c, 'ett', 'Endotracheal tube') + '</div></section>';
   if (wave) h += waveConfirmHTML(c);
   if (iqi || wave) h += '<div class="next"><button class="btn big" data-act="tab" data-tab="after">Go to After tab</button></div>';
   return h;
@@ -906,7 +964,7 @@ function medBlock(c, key, title, drugs){
   var m = c.iqi[key];
   var h = '<div class="q"><p class="qt">' + title + '</p>' + chips(c, 'iqi.' + key + '.drug', drugs);
   if (m.drug && m.drug !== 'None') {
-    h += '<div class="vgrid">' + '<label class="txt"><span>Dose (mg)</span><input class="vin" id="' + pid('iqi.' + key + '.dose') + '" data-bind="iqi.' + key + '.dose" data-kind="dec" inputmode="decimal" autocomplete="off" placeholder="–" value="' + esc(m.dose) + '"></label></div>' +
+    h += '<div class="vgrid"><div class="txt"><span>Dose (mg)</span>' + kpField({ id: pid('iqi.' + key + '.dose'), kind: 'dec', label: title + ' dose', unit: 'mg', path: 'iqi.' + key + '.dose', val: m.dose }) + '</div></div>' +
       '<p class="hint">Route</p>' + chips(c, 'iqi.' + key + '.route', ROUTES);
   }
   return h + '</div>';
@@ -925,8 +983,8 @@ function lowCard(c, key){
     '<div class="vl"><b>' + label + '</b><span class="u">' + (isS ? '%' : 'mmHg') + '</span><button class="na' + (na ? ' on' : '') + '" data-act="na" data-path="low.' + key + '" aria-pressed="' + na + '" aria-label="' + label + ' not available">N/A</button></div>' +
     '<div class="natext">N/A</div>' +
     (na ? '' : '<div class="lowrow"><div class="lowv" data-derive="lowv-' + key + '"></div><div class="lowadd">' +
-      '<input class="vin" id="low-' + key + '" data-kind="int" data-max="' + (isS ? 100 : 300) + '" data-enter="lowAdd" data-key="' + key + '" inputmode="numeric" pattern="[0-9]*" autocomplete="off" placeholder="Reading" aria-label="' + label + ' reading" enterkeyhint="done">' +
-      '<button class="btn" data-act="lowAdd" data-key="' + key + '">Log</button></div></div>' +
+      kpField({ id: 'low-' + key, kind: 'int', max: isS ? 100 : 300, label: label + ': new reading', unit: isS ? '%' : 'mmHg', low: key, done: 'lowAdd', val: '', ph: 'Log a reading', cls: 'lowbtn' }) +
+      '</div></div>' +
       '<div class="readings" data-derive="lowr-' + key + '"></div>') +
     '</div>';
 }
@@ -969,7 +1027,8 @@ function postSedHTML(c){
       ? '<button class="evt done" data-act="editEvt" data-key="post"><span class="lbl">Sedative given</span>' + timePair(c, p.t) + '<span class="ed">Edit</span></button>'
       : '<button class="evt' + (s != null ? ' ready' : '') + '" data-act="postLog"' + (s != null ? '' : ' disabled') + '><span class="lbl">Sedative given<small>Logs the stopwatch time now</small></span><span class="go">TAP</span></button>';
     h += q('Medication', '', chips(c, 'iqi.post.drug', POST_SED)) +
-      '<div class="vgrid">' + textIn(c, 'iqi.post.dose', 'First dose (mg)', 'dec') + textIn(c, 'iqi.post.rate', 'Initial infusion (mcg/kg/min)', 'dec') + '</div>';
+      '<div class="vgrid">' + '<div class="txt"><span>First dose (mg)</span>' + kpField({ id: pid('iqi.post.dose'), kind: 'dec', label: 'First dose', unit: 'mg', path: 'iqi.post.dose', val: p.dose }) + '</div>' +
+      '<div class="txt"><span>Initial infusion (mcg/kg/min)</span>' + kpField({ id: pid('iqi.post.rate'), kind: 'dec', label: 'Initial infusion rate', unit: 'mcg/kg/min', path: 'iqi.post.rate', val: p.rate }) + '</div>' + '</div>';
   }
   return h + '</section>';
 }
@@ -1153,7 +1212,7 @@ function summaryGroups(c){
     ] });
   }
   if (c.studies.angle) {
-    G.push({ title: 'ANGLE', parts: [{ title: 'Recorded during procedure', rows: [
+    G.push({ title: 'ANGLE', parts: [{ title: 'Pre-intubation', rows: [R_('Randomized to', c.angle.arm)] }, { title: 'Recorded during procedure', rows: [
       R_('1. TIME first RSI med pushed', s == null ? null : (c.noMeds ? 'No RSI meds' : fmtClock(c.start))),
       R_('O₂ sat as meds pushed', sv(c.v.rsi.spo2, '%')),
       bpRow('SBP as meds pushed', c.v.rsi.bp, false),
@@ -1208,6 +1267,7 @@ function warnings(c){
     if (a && ev.tube != null && a.t < ev.tube) W.push('The BVM marked as through the tube (' + fmtSW(sw(c, a.t)) + ') is earlier than tube placed (' + fmtSW(sw(c, ev.tube)) + '). Check the tube time.');
     if (c.iqi.post.t != null && ev.tube != null && c.iqi.post.t < ev.tube) W.push('The post-intubation sedative time is earlier than tube placement.');
   }
+  if (c.studies.angle && c.angle.arm === 'Hyperangulated' && c.counts.bougie > 0) W.push('ANGLE arm is hyperangulated, but the bougie count is ' + c.counts.bougie + '.');
   var bps = [['Baseline BP', c.v.base.bp], ['RSI BP', c.v.rsi.bp], ['5-min BP', c.v.five.bp]];
   bps.forEach(function(b){ var o = b[1]; if (!o.na && o.s !== '' && o.d !== '' && +o.d >= +o.s) W.push(b[0] + ': diastolic is not lower than systolic.'); });
   var outs = [];
@@ -1259,13 +1319,14 @@ SHEETS.edit = function(c){
   var key = UI.sheet.key, t = getT(c, key), s = startSec(c);
   if (t == null) return null;
   var st = isStartKey(c, key), clr = canClear(c, key);
+  UI.sheet.vals = UI.sheet.vals || { sw: '', clock: '' };
   return '<h3>' + esc(keyLabel(c, key)) + '</h3>' +
     '<div class="edtimes"><div><span>Stopwatch</span><b>' + (s == null ? '--:--' : fmtSW(t - s)) + '</b></div><div><span>Clock</span><b>' + fmtClock(t) + '</b></div></div>' +
     (st ? '<p class="hint">Moving the start keeps every other step at its clock time, so their stopwatch times shift.</p>' : '') +
     '<div class="nudges">' + [-10, -5, -1, 1, 5, 10].map(function(d){ return '<button class="nudge" data-act="nudge" data-d="' + d + '">' + (d > 0 ? '+' : '−') + Math.abs(d) + 's</button>'; }).join('') + '</div>' +
     '<div class="edin">' +
-      (st ? '' : '<label class="txt"><span>Type a stopwatch time (m:ss)</span><div class="row2"><input id="ed-sw" data-kind="time" data-enter="setSW" inputmode="numeric" autocomplete="off" placeholder="' + fmtSW(t - s) + '"><button class="btn" data-act="setSW">Set</button></div></label>') +
-      '<label class="txt"><span>Or a clock time (24 h, hh:mm:ss)</span><div class="row2"><input id="ed-clock" data-kind="time" data-enter="setClock" inputmode="numeric" autocomplete="off" placeholder="' + fmtClock(t) + '"><button class="btn" data-act="setClock">Set</button></div></label>' +
+      (st ? '' : '<div class="txt"><span>Type a stopwatch time (m:ss)</span><div class="row2">' + kpField({ id: 'ed-sw', kind: 'time', label: 'Stopwatch time (m:ss)', sh: 'sw', done: 'setSW', val: UI.sheet.vals.sw, ph: fmtSW(t - s) }) + '<button class="btn" data-act="setSW">Set</button></div></div>') +
+      '<div class="txt"><span>Or a clock time (24 h, hh:mm:ss)</span><div class="row2">' + kpField({ id: 'ed-clock', kind: 'time', label: 'Clock time (hh:mm:ss)', sh: 'clock', done: 'setClock', val: UI.sheet.vals.clock, ph: fmtClock(t) }) + '<button class="btn" data-act="setClock">Set</button></div></div>' +
     '</div>' +
     '<div class="sheet-actions"><button class="btn danger" data-act="clearT" data-confirm="1"' + (clr ? '' : ' disabled') + '>' + (key.indexOf('bvm:') === 0 ? 'Delete this BVM' : 'Clear time') + '</button><button class="btn primary" data-act="closeSheet">Done</button></div>' +
     (!clr ? '<p class="hint">The start can be cleared only before any other step is recorded.</p>' : '');
@@ -1291,12 +1352,12 @@ SHEETS.bvm = function(c){
     '<div class="sheet-actions"><button class="btn" data-act="bvm">Log a BVM now</button><button class="btn primary" data-act="closeSheet">Done</button></div>';
 };
 SHEETS.iv = function(c){
-  var R = ivRanges(c); if (!R) return null; var k = UI.sheet.k;
+  var R = ivRanges(c); if (!R) return null; var k = UI.sheet.k, vals = UI.sheet.vals || (UI.sheet.vals = { s: '', d: '', hr: '' });
   return '<h3>Add BP reading</h3><p class="hint">Saved to the interval you pick. The lowest SBP in each interval is chosen automatically, with the HR you enter here.</p>' +
     '<div class="ivpick" role="group" aria-label="Interval">' + R.map(function(r, i){ return '<button class="chip' + (i === k ? ' on' : '') + '" data-act="ivPick" data-k="' + i + '" aria-pressed="' + (i === k) + '">' + (i + 1) + '<small>' + fmtSW(r.s) + '–' + fmtSW(r.e) + '</small></button>'; }).join('') + '</div>' +
     '<div class="vgrid">' +
-      '<div class="vital k-bp bpfull"><div class="vl"><b>BP</b><span class="u">mmHg</span></div><div class="bp"><input class="vin" id="sh-s" data-kind="int" data-max="300" inputmode="numeric" pattern="[0-9]*" placeholder="SBP" aria-label="Systolic"><span class="slash">/</span><input class="vin" id="sh-d" data-kind="int" data-max="250" inputmode="numeric" pattern="[0-9]*" placeholder="DBP" aria-label="Diastolic"></div></div>' +
-      '<div class="vital k-hr"><div class="vl"><b>HR</b><span class="u">bpm</span></div><input class="vin" id="sh-hr" data-kind="int" data-max="300" data-enter="ivSave" inputmode="numeric" pattern="[0-9]*" placeholder="HR" aria-label="Heart rate"></div>' +
+      '<div class="vital k-bp bpfull"><div class="vl"><b>BP</b><span class="u">mmHg</span></div><div class="bp">' + kpField({ id: 'sh-s', kind: 'int', max: 300, label: 'Systolic BP', unit: 'mmHg', sh: 's', val: vals.s, ph: 'SBP' }) + '<span class="slash">/</span>' + kpField({ id: 'sh-d', kind: 'int', max: 250, label: 'Diastolic BP', unit: 'mmHg', sh: 'd', val: vals.d, ph: 'DBP' }) + '</div></div>' +
+      '<div class="vital k-hr"><div class="vl"><b>HR</b><span class="u">bpm</span></div>' + kpField({ id: 'sh-hr', kind: 'int', max: 300, label: 'HR at the same moment', unit: 'bpm', sh: 'hr', val: vals.hr, ph: 'HR', done: 'ivSave' }) + '</div>' +
     '</div>' +
     '<div class="sheet-actions"><button class="btn ghost" data-act="closeSheet">Cancel</button><button class="btn primary" data-act="ivSave">Save reading</button></div>';
 };
@@ -1307,12 +1368,129 @@ SHEETS.copy = function(){
 function renderSheet(){
   var wrap = $('#sheetwrap'), sh = $('#sheet'), c = C();
   var html = UI.sheet && SHEETS[UI.sheet.type] ? SHEETS[UI.sheet.type](c) : null;
-  if (!html) { UI.sheet = null; wrap.hidden = true; sh.innerHTML = ''; document.body.classList.remove('noscroll'); return; }
+  if (!html) { UI.sheet = null; wrap.hidden = true; sh.innerHTML = ''; document.body.classList.remove('noscroll'); kpSync(); return; }
   var first = sh.innerHTML === '' || sh._type !== UI.sheet.type;
   sh.innerHTML = html; sh._type = UI.sheet.type; wrap.hidden = false; document.body.classList.add('noscroll');
   if (first) sh.scrollTop = 0;
+  kpSync();
 }
 function closeSheet(){ UI.sheet = null; renderSheet(); }
+
+/* =========================================================
+   On-screen number pad. Numbers are entered with these buttons
+   instead of the phone keyboard, so entry works the same on every phone.
+   ========================================================= */
+var ICON_DEL = '<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="M17 9l-6 6M11 9l6 6"/></svg>';
+function lowAddValue(key, v){
+  var c = C(); v = String(v || '').replace(/[^0-9]/g, ''); if (!c || !v) return false;
+  c.low[key].r.push({ v: v, t: nowSec() }); save(true); refreshDerived();
+  toast('Logged ' + v + (key === 'spo2' ? '%' : ' mmHg')); return true;
+}
+function kpEl(){ return UI.kp ? document.getElementById(UI.kp.id) : null; }
+function kpContext(el){
+  var sec = el.closest('.sec'), sh = el.closest('#sheet');
+  var h = sh ? sh.querySelector('h3') : sec ? sec.querySelector('h2') : null;
+  return h ? h.textContent : '';
+}
+function kpOpen(el){
+  if (!el || el.disabled) return;
+  var d = el.dataset;
+  UI.kp = { id: el.id, kind: d.kind || 'int', max: d.max ? +d.max : null, label: d.label || '', unit: d.unit || '', path: d.path || null, low: d.low || null, sh: d.sh || null, na: d.na || null, done: d.kpdone || null, inSheet: !!el.closest('#sheet'), ctx: kpContext(el), fresh: true, buf: '' };
+  UI.kp.buf = kpRead();
+  var ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) ae.blur();
+  renderKp(); kpMark(); kpReveal();
+}
+function kpRead(){
+  var k = UI.kp, c = C();
+  if (k.path && c) { var v = get(c, k.path); return v == null ? '' : String(v); }
+  if (k.sh && UI.sheet && UI.sheet.vals) return String(UI.sheet.vals[k.sh] || '');
+  return '';
+}
+function kpPaint(el, v){
+  if (!el) return;
+  el.innerHTML = v === '' ? '<span class="ph">' + esc(el.dataset.ph || '–') + '</span>' : esc(v);
+  if (el.dataset.max && el.dataset.kind === 'int') el.classList.toggle('bad', v !== '' && +v > +el.dataset.max);
+}
+function kpWrite(v){
+  var k = UI.kp, c = C(); if (!k) return;
+  k.buf = v;
+  if (k.path && c) { setp(c, k.path, v); save(); refreshDerived(); }
+  else if (k.sh && UI.sheet) { UI.sheet.vals = UI.sheet.vals || {}; UI.sheet.vals[k.sh] = v; }
+  if (!k.low) kpPaint(kpEl(), v);
+  kpHead();
+}
+function kpKey(key){
+  var k = UI.kp; if (!k) return;
+  var b;
+  if (key === 'back') b = k.buf.slice(0, -1);
+  else {
+    var base = k.fresh ? '' : k.buf;
+    if (key === '.' && (k.kind !== 'dec' || base.indexOf('.') >= 0)) return;
+    if (key === ':' && k.kind !== 'time') return;
+    b = base + key;
+    if (b.length > (k.kind === 'int' ? 3 : k.kind === 'dec' ? 6 : 8)) return;
+  }
+  k.fresh = false; kpWrite(b);
+}
+function kpScopeFields(el){
+  var scope = el.closest('#sheet') || el.closest('.sec');
+  return scope ? $$('.kpf', scope) : [];
+}
+function kpNextEl(){
+  var el = kpEl(); if (!el || UI.kp.low) return null;
+  var all = kpScopeFields(el), i = all.indexOf(el);
+  for (var j = i + 1; j < all.length; j++) if (!all[j].disabled && !all[j].dataset.low) return all[j];
+  return null;
+}
+function kpNa(){
+  var k = UI.kp, c = C(); if (!k || !k.na || !c) return;
+  var el = kpEl(), ids = el ? kpScopeFields(el).map(function(x){ return x.id; }) : [];
+  var after = ids.slice(ids.indexOf(k.id) + 1);
+  var o = get(c, k.na); if (o) o.na = true;
+  UI.kp = null; commit();
+  for (var i = 0; i < after.length; i++) { var n = document.getElementById(after[i]); if (n && !n.disabled && !n.dataset.low) { kpOpen(n); return; } }
+}
+function kpDone(){
+  var k = UI.kp; if (!k) return;
+  var buf = k.buf; kpClose();
+  if (k.done === 'lowAdd') { lowAddValue(k.low, buf); return; }
+  if (k.done && ACT[k.done]) ACT[k.done]();
+}
+function kpClose(){ if (!UI.kp) return; UI.kp = null; renderKp(); kpMark(); }
+function kpMark(){ $$('.kpf.editing').forEach(function(x){ x.classList.remove('editing'); }); var el = kpEl(); if (el) el.classList.add('editing'); }
+function kpSync(){ if (!UI.kp) return; var el = kpEl(); if (!el || el.disabled) { kpClose(); return; } UI.kp.inSheet = !!el.closest('#sheet'); kpMark(); renderKp(); }
+function kpReveal(){
+  var el = kpEl(); if (!el) return;
+  if (UI.kp.inSheet) { el.scrollIntoView({ block: 'nearest' }); return; }
+  var r = el.getBoundingClientRect(), kh = $('#kp').offsetHeight, hdr = $('.hdr');
+  var top = (hdr ? hdr.getBoundingClientRect().bottom : 0) + 8, bottom = window.innerHeight - kh - 16;
+  if (r.bottom > bottom) window.scrollBy(0, r.bottom - bottom);
+  else if (r.top < top) window.scrollBy(0, r.top - top);
+}
+function kpHead(){
+  var k = UI.kp, h = $('#kphead'); if (!k || !h) return;
+  var bad = k.kind === 'int' && k.max && k.buf !== '' && +k.buf > k.max;
+  h.innerHTML = '<div class="kp-lbl"><span class="kp-ctx' + (bad ? ' bad' : '') + '">' + esc(bad ? 'Above ' + k.max + '. Check the value.' : k.ctx) + '</span><b>' + esc(k.label) + '</b></div>' +
+    '<div class="kp-val' + (bad ? ' bad' : '') + '">' + (k.buf === '' ? '<span class="ph">–</span>' : esc(k.buf)) + (k.unit ? '<small>' + esc(k.unit) + '</small>' : '') + '</div>';
+}
+function renderKp(){
+  var el = $('#kp'), k = UI.kp;
+  if (!k) { el.hidden = true; el.innerHTML = ''; document.body.classList.remove('kp-open'); return; }
+  function key(d){ return '<button type="button" data-act="kpKey" data-k="' + d + '">' + d + '</button>'; }
+  var special = k.kind === 'dec' ? key('.') : k.kind === 'time' ? key(':') : k.na ? '<button type="button" class="fn" data-act="kpNa">N/A</button>' : '<span></span>';
+  var doneLbl = k.done === 'lowAdd' ? 'Log' : k.done === 'ivSave' ? 'Save' : (k.done === 'setSW' || k.done === 'setClock') ? 'Set' : 'Done';
+  var nx = !!kpNextEl();
+  el.innerHTML = '<div class="kp-in"><div class="kp-head" id="kphead"></div><div class="kp-grid">' +
+    key('1') + key('2') + key('3') + '<button type="button" class="fn" data-act="kpBack" aria-label="Delete">' + ICON_DEL + '</button>' +
+    key('4') + key('5') + key('6') + '<button type="button" class="fn" data-act="kpClear">Clear</button>' +
+    key('7') + key('8') + key('9') + '<button type="button" class="fn" data-act="kpNext"' + (nx ? '' : ' disabled') + '>Next</button>' +
+    special + '<button type="button" class="zero" data-act="kpKey" data-k="0">0</button><button type="button" class="done" data-act="kpDone">' + doneLbl + '</button>' +
+    '</div></div>';
+  el.hidden = false; document.body.classList.add('kp-open');
+  document.documentElement.style.setProperty('--kp-h', el.offsetHeight + 'px');
+  kpHead();
+}
 
 function renderAlertBar(){
   var b = $('#abar'), a = UI.alert;
@@ -1380,7 +1558,7 @@ var ACT = {
   open: function(el){
     S.activeId = el.dataset.id; var c = C(); if (!c) return;
     UI.view = 'case'; UI.alert = null; UI.rassOpen = {};
-    UI.tab = startSec(c) != null ? 'during' : (c.studies.iqi ? 'before' : 'during');
+    UI.tab = startSec(c) != null ? 'during' : (c.studies.iqi || c.studies.angle ? 'before' : 'during');
     commit(); window.scrollTo(0, 0); syncWake();
   },
   preset: function(el){ var v = el.dataset.val; UI.newSt = v === 'iqi' ? { iqi: true, angle: false, wave: false } : v === 'aw' ? { iqi: false, angle: true, wave: true } : { iqi: true, angle: true, wave: true }; render(); },
@@ -1388,7 +1566,7 @@ var ACT = {
   create: function(){
     var ns = UI.newSt; if (!ns.iqi && !ns.angle && !ns.wave) { toast('Pick at least one study'); return; }
     var c = newCase(ns); S.cases[c.id] = c; S.activeId = c.id; S.settings.last = clone(ns);
-    UI.view = 'case'; UI.tab = ns.iqi ? 'before' : 'during'; UI.alert = null; UI.rassOpen = {};
+    UI.view = 'case'; UI.tab = ns.iqi || ns.angle ? 'before' : 'during'; UI.alert = null; UI.rassOpen = {};
     commit(); window.scrollTo(0, 0);
   },
   delCase: function(el){ var id = el.dataset.id; delete S.cases[id]; if (S.activeId === id) { S.activeId = null; UI.alert = null; } commit('Case deleted'); syncWake(); },
@@ -1416,7 +1594,7 @@ var ACT = {
   },
   evt: function(el){
     var c = C(), k = el.dataset.key;
-    if (c.ev[k] != null) { UI.sheet = { type: 'edit', key: k }; renderSheet(); return; }
+    if (c.ev[k] != null) { UI.sheet = { type: 'edit', key: k, vals: { sw: '', clock: '' } }; renderSheet(); return; }
     if (startSec(c) == null && !(c.noMeds && k === 'bladeIn')) return;
     var t = nowSec(); c.ev[k] = t;
     if (k === 'bladeIn' && !c.counts.blade) c.counts.blade = 1;
@@ -1424,21 +1602,21 @@ var ACT = {
     commit(EVL[k] + ' · ' + fmtSW(t - startSec(c)));
     syncWake();
   },
-  editEvt: function(el){ UI.sheet = { type: 'edit', key: el.dataset.key }; renderSheet(); },
+  editEvt: function(el){ UI.sheet = { type: 'edit', key: el.dataset.key, vals: { sw: '', clock: '' } }; renderSheet(); },
   nudge: function(el){
     var c = C(), key = UI.sheet.key, t = getT(c, key); if (t == null) return;
     setT(c, key, t + (+el.dataset.d)); commit();
   },
   setSW: function(){
-    var c = C(), key = UI.sheet.key, s = startSec(c), v = parseSW($('#ed-sw').value);
+    var c = C(), key = UI.sheet.key, s = startSec(c), v = parseSW((UI.sheet.vals || {}).sw);
     if (v == null || s == null) { toast('Use m:ss, like 1:42'); return; }
-    setT(c, key, s + v); commit('Set to ' + fmtSW(v));
+    setT(c, key, s + v); UI.sheet.vals = { sw: '', clock: '' }; commit('Set to ' + fmtSW(v));
   },
   setClock: function(){
     var c = C(), key = UI.sheet.key, base = getT(c, key);
-    var t = parseClock($('#ed-clock').value, base == null ? nowSec() : base);
+    var t = parseClock((UI.sheet.vals || {}).clock, base == null ? nowSec() : base);
     if (t == null) { toast('Use hh:mm:ss, like 14:03:27'); return; }
-    setT(c, key, t); commit('Set to ' + fmtClock(t));
+    setT(c, key, t); UI.sheet.vals = { sw: '', clock: '' }; commit('Set to ' + fmtClock(t));
   },
   clearT: function(){
     var c = C(), key = UI.sheet.key; if (!canClear(c, key)) return;
@@ -1462,7 +1640,7 @@ var ACT = {
   bvmDel: function(el){ var c = C(); c.bvm.splice(+el.dataset.i, 1); commit('BVM deleted'); },
 
   /* counts + fields */
-  cnt: function(el){ var c = C(), k = el.dataset.k, d = +el.dataset.d, v = c.counts[k]; c.counts[k] = v == null ? (d > 0 ? 1 : 0) : Math.max(0, v + d); commit(); },
+  cnt: function(el){ var c = C(), k = el.dataset.k, d = +el.dataset.d, v = c.counts[k]; c.counts[k] = v == null ? (d > 0 ? 1 : 0) : Math.max(0, v + d); if (k === 'bougie') c.bougieAuto = false; commit(); },
   set: function(el){ var c = C(), p = el.dataset.path, v = el.dataset.val; setp(c, p, get(c, p) === v ? '' : v); if (p === 'iqi.first') c.firstAuto = false; commit(); },
   rassSet: function(el){ var c = C(), p = el.dataset.path, v = el.dataset.val; setp(c, p, get(c, p) === v ? '' : v); UI.rassOpen[p] = false; commit(); },
   rassOpen: function(el){ UI.rassOpen[el.dataset.path] = true; render(); },
@@ -1471,12 +1649,6 @@ var ACT = {
   na: function(el){ var c = C(), o = get(c, el.dataset.path); o.na = !o.na; commit(); },
 
   /* ANGLE lows */
-  lowAdd: function(el){
-    var c = C(), key = el.dataset.key, inp = $('#low-' + key); if (!inp) return;
-    var v = inp.value.replace(/[^0-9]/g, ''); if (!v) { inp.focus(); return; }
-    c.low[key].r.push({ v: v, t: nowSec() }); inp.value = ''; inp.classList.remove('bad');
-    save(true); refreshDerived(); toast('Logged ' + v + (key === 'spo2' ? '%' : ' mmHg')); inp.focus();
-  },
   lowDel: function(el){ var c = C(); c.low[el.dataset.key].r.splice(+el.dataset.i, 1); save(true); refreshDerived(); },
 
   /* IQI intervals */
@@ -1484,19 +1656,39 @@ var ACT = {
     var c = C(); if (!ivRanges(c)) return;
     var k = el.dataset.k != null ? +el.dataset.k : currentIv(c);
     if (k < 0) k = 0; if (k > 4) k = 4;
-    UI.sheet = { type: 'iv', k: k }; renderSheet();
-    setTimeout(function(){ var i = $('#sh-s'); if (i) i.focus(); }, 50);
+    UI.sheet = { type: 'iv', k: k, vals: { s: '', d: '', hr: '' } }; renderSheet();
+    kpOpen($('#sh-s'));
   },
   ivPick: function(el){ UI.sheet.k = +el.dataset.k; $$('.ivpick .chip').forEach(function(b){ var on = +b.dataset.k === UI.sheet.k; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); }); },
   ivSave: function(){
     var c = C(), k = UI.sheet.k;
-    var sb = $('#sh-s').value.replace(/[^0-9]/g, ''), db = $('#sh-d').value.replace(/[^0-9]/g, ''), hr = $('#sh-hr').value.replace(/[^0-9]/g, '');
-    if (!sb) { toast('Enter the systolic BP'); $('#sh-s').focus(); return; }
+    var vals = UI.sheet.vals || {}, sb = String(vals.s || ''), db = String(vals.d || ''), hr = String(vals.hr || '');
+    if (!sb) { toast('Enter the systolic BP'); kpOpen($('#sh-s')); return; }
+    kpClose();
     c.iv[k].r.push({ s: sb, d: db, hr: hr, t: nowSec() }); c.iv[k].na = false; UI.sheet = null;
     commit('Saved to interval ' + (k + 1));
   },
   ivDel: function(el){ var c = C(); c.iv[+el.dataset.k].r.splice(+el.dataset.i, 1); save(true); refreshDerived(); },
   ivNa: function(el){ var c = C(), o = c.iv[+el.dataset.k]; o.na = !o.na; save(true); refreshDerived(); },
+
+  /* number pad */
+  kp: function(el){ kpOpen(el); },
+  kpKey: function(el){ kpKey(el.dataset.k); },
+  kpBack: function(){ kpKey('back'); },
+  kpClear: function(){ if (UI.kp) { UI.kp.fresh = false; kpWrite(''); } },
+  kpNext: function(){ var n = kpNextEl(); if (n) kpOpen(n); else kpDone(); },
+  kpDone: function(){ kpDone(); },
+  kpNa: function(){ kpNa(); },
+
+  /* ANGLE randomization */
+  arm: function(el){
+    var c = C(), v = el.dataset.val;
+    c.angle.arm = c.angle.arm === v ? '' : v;
+    if (c.angle.arm === 'Hyperangulated') {
+      if (c.counts.bougie == null || c.counts.bougie === 0) { c.counts.bougie = 0; c.bougieAuto = true; }
+    } else if (c.bougieAuto && c.counts.bougie === 0) { c.counts.bougie = null; c.bougieAuto = false; }
+    commit(c.angle.arm === 'Hyperangulated' && c.bougieAuto ? 'Hyperangulated · bougie entries set to 0' : '');
+  },
 
   /* post-intubation sedative */
   postLog: function(){ var c = C(); if (startSec(c) == null) return; var t = nowSec(); c.iqi.post.t = t; c.iqi.post.none = false; commit('Sedative logged · ' + fmtSW(sw(c, t))); },
@@ -1528,6 +1720,7 @@ var ACT = {
    ========================================================= */
 document.addEventListener('pointerdown', unlockAudio, { passive: true });
 document.addEventListener('click', function(e){
+  if (UI.kp && !e.target.closest('#kp') && !e.target.closest('.kpf')) kpClose();
   var el = e.target.closest('[data-act]'); if (!el || el.disabled) return;
   var fn = ACT[el.dataset.act]; if (!fn) return;
   e.preventDefault();
@@ -1553,6 +1746,15 @@ document.addEventListener('input', function(e){
   if (el.dataset.bind && c) { setp(c, el.dataset.bind, nv); save(); refreshDerived(); }
 });
 document.addEventListener('keydown', function(e){
+  var tn = e.target && e.target.tagName;
+  if (UI.kp && tn !== 'INPUT' && tn !== 'TEXTAREA') {
+    var kk = e.key;
+    if (/^[0-9.:]$/.test(kk)) { e.preventDefault(); kpKey(kk); return; }
+    if (kk === 'Backspace' || kk === 'Delete') { e.preventDefault(); kpKey('back'); return; }
+    if (kk === 'Enter') { e.preventDefault(); kpDone(); return; }
+    if (kk === 'Tab') { e.preventDefault(); ACT.kpNext(); return; }
+    if (kk === 'Escape') { e.preventDefault(); kpClose(); return; }
+  }
   if (e.key === 'Enter' && e.target.dataset && e.target.dataset.enter) { e.preventDefault(); var fn = ACT[e.target.dataset.enter]; if (fn) fn(e.target, e); }
   if (e.key === 'Escape' && UI.sheet) closeSheet();
 });
