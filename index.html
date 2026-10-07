@@ -5,9 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#121820">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Airway Timer">
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>Airway Study Timer</title>
@@ -340,6 +337,11 @@ textarea.copytxt{width:100%;min-height:50vh;border-radius:10px;border:1.5px soli
 #flash.amber{box-shadow:inset 0 0 0 14px var(--warn);background:var(--warn-soft)}
 #flash.go{animation:flash 1s ease-in-out 5}
 @keyframes flash{0%,100%{opacity:0}35%,65%{opacity:1}}
+.upd{position:fixed;left:0;right:0;top:0;z-index:75;background:var(--accent);color:var(--accent-ink);padding:calc(8px + env(safe-area-inset-top,0px)) 16px 8px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.upd-in{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:10px}
+.upd-in span{flex:1;font-weight:600;font-size:15px;line-height:1.3}
+.upd-in button{min-height:40px;padding:6px 14px;border-radius:10px;font-weight:700;border:2px solid currentColor}
+.upd-in .go{background:var(--accent-ink);color:var(--accent);border-color:var(--accent-ink)}
 .toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:70;max-width:calc(100% - 32px);padding:10px 16px;border-radius:12px;background:var(--fg);color:var(--bg);font-weight:600;font-size:15px;box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 .kpf{display:flex;align-items:center;text-align:left;cursor:pointer;overflow:hidden;white-space:nowrap}
@@ -406,6 +408,7 @@ body.noscroll .toast{bottom:auto;top:calc(16px + env(safe-area-inset-top,0px))}
   <div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Details"></div>
 </div>
 <div class="abar" id="abar" role="alert" hidden></div>
+<div class="upd" id="upd" role="status" hidden></div>
 <div class="kp" id="kp" role="group" aria-label="Number pad" hidden></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script>
@@ -418,6 +421,7 @@ window.addEventListener('error', function(e){ var el = document.getElementById('
 /* =========================================================
    Basics
    ========================================================= */
+var APP_VERSION = '2026.10.07-10';
 var KEY = 'airwayStudyTimer.v1';
 var $ = function(s, r){ return (r || document).querySelector(s); };
 var $$ = function(s, r){ return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
@@ -809,6 +813,7 @@ function homeHTML(){
     '<div class="setrow"><span>Alert sound</span><div class="chips">' + ['On', 'Off'].map(function(v){ var on = (v === 'On') === !!S.settings.sound; return '<button class="chip' + (on ? ' on' : '') + '" data-act="sound" data-val="' + v + '" aria-pressed="' + on + '">' + v + '</button>'; }).join('') + '</div></div>' +
     '<div class="setrow"><span>Theme</span><div class="chips">' + [['auto', 'Auto'], ['dark', 'Dark'], ['light', 'Light']].map(function(p){ var on = S.settings.theme === p[0]; return '<button class="chip' + (on ? ' on' : '') + '" data-act="theme" data-val="' + p[0] + '" aria-pressed="' + on + '">' + p[1] + '</button>'; }).join('') + '</div></div>' +
     '<button class="btn" data-act="testAlert">Test alert (flash, sound, vibration)</button>' +
+    '<div class="setrow"><span>Version <span class="mono">' + APP_VERSION + '</span></span><button class="btn" data-act="checkUpdate">Check for updates</button></div>' +
     '<p class="hint">Alerts flash red and beep when each IQI interval starts. Phones pause web pages when locked, so keep this page open and the screen on during a case. Sound follows the ringer switch on iPhone. Vibration works on Android only.</p>' +
     '</div></section>';
   h += '<p class="foot">Cases are saved only in this browser on this phone. Do not enter names or MRNs. Clearing browser data deletes saved cases.</p>';
@@ -1580,6 +1585,9 @@ var ACT = {
   delCase: function(el){ var id = el.dataset.id; delete S.cases[id]; if (S.activeId === id) { S.activeId = null; UI.alert = null; } commit('Case deleted'); syncWake(); },
   sound: function(el){ S.settings.sound = el.dataset.val === 'On'; unlockAudio(); commit(); },
   theme: function(el){ S.settings.theme = el.dataset.val; applyTheme(); commit(); },
+  checkUpdate: function(){ checkUpdate(true); },
+  doUpdate: function(){ var v = UI.update; write(); location.replace(location.pathname + '?v=' + encodeURIComponent(v || Date.now()) + location.hash); },
+  updX: function(){ UI.updateDismissed = UI.update; UI.update = null; renderUpd(); },
   testAlert: function(){ unlockAudio(); setTimeout(function(){ fireAlert({ id: 'test', kind: 'iqi', title: 'Test alert', msg: 'This is how an IQI interval alert looks and sounds.' }); }, 60); },
 
   /* stopwatch */
@@ -1766,9 +1774,31 @@ document.addEventListener('keydown', function(e){
   if (e.key === 'Enter' && e.target.dataset && e.target.dataset.enter) { e.preventDefault(); var fn = ACT[e.target.dataset.enter]; if (fn) fn(e.target, e); }
   if (e.key === 'Escape' && UI.sheet) closeSheet();
 });
+/* Home-screen web apps on iPhone resume the copy already in memory and have no reload button,
+   so the app asks the site for its current version and offers a one-tap update. */
+var lastUpdCheck = 0;
+function checkUpdate(manual){
+  if (!/^https?:$/.test(location.protocol)) { if (manual) toast('Update checks work on the hosted site'); return; }
+  lastUpdCheck = Date.now();
+  fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' })
+    .then(function(r){ return r.ok ? r.text() : ''; })
+    .then(function(t){
+      var m = /APP_VERSION = '([^']+)'/.exec(t || '');
+      if (!m) { if (manual) toast('Could not check for updates'); return; }
+      if (m[1] !== APP_VERSION) { if (manual || UI.updateDismissed !== m[1]) { UI.update = m[1]; renderUpd(); } }
+      else if (manual) toast('You have the latest version');
+    })
+    .catch(function(){ if (manual) toast('Could not reach the site. Check your connection.'); });
+}
+function renderUpd(){
+  var el = $('#upd');
+  if (!UI.update) { el.hidden = true; el.innerHTML = ''; return; }
+  el.innerHTML = '<div class="upd-in"><span>A new version is ready. Saved cases stay on this phone.</span><button class="go" data-act="doUpdate">Update</button><button data-act="updX">Later</button></div>';
+  el.hidden = false;
+}
 document.addEventListener('visibilitychange', function(){
   if (document.visibilityState === 'hidden') write();
-  else { syncWake(); tick(true); }
+  else { syncWake(); tick(true); if (Date.now() - lastUpdCheck > 60000) checkUpdate(false); }
 });
 window.addEventListener('pagehide', write);
 
@@ -1819,6 +1849,7 @@ render();
 syncWake();
 setInterval(tick, 250);
 tick(true);
+setTimeout(function(){ checkUpdate(false); }, 1500);
 window.__airway = { S: S, UI: UI, anchor: anchor, ivRanges: ivRanges, currentIv: currentIv, summaryText: summaryText, warnings: warnings, parseSW: parseSW, parseClock: parseClock, render: render, tick: tick };
 })();
 </script>
